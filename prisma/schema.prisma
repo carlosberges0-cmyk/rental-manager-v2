@@ -1,0 +1,370 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  units         Unit[]
+  propertyGroups PropertyGroup[]
+  taxProfile    TaxProfile?
+  invoices      Invoice[]
+  payments      Payment[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model PropertyGroup {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  units     Unit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Unit {
+  id            String          @id @default(cuid())
+  userId        String
+  propertyGroupId String?       // Grupo de propiedades (opcional)
+  name          String
+  address       String?
+  type          UnitType
+  owner         String?        // Propietario
+  notes         String?         @db.Text
+  archived      Boolean         @default(false)
+  // Flags fiscales
+  aplicaIvaAlquiler Boolean     @default(false) // Si aplica IVA al alquiler
+  ivaRatePercent Decimal?        @db.Decimal(5, 2) // IVA percentage to charge (e.g., 21%)
+  aplicaIibbRetencion Boolean   @default(false) // Si aplica retención IIBB
+  iibbRatePercent Decimal?       @db.Decimal(5, 2) // IIBB (Ingresos Brutos) percentage (ej: 0.035 = 3.5%)
+  igRatePercent  Decimal?        @db.Decimal(5, 2) // IG (Impuesto a las Ganancias) percentage
+  monthlyExpensesAmount Decimal? @db.Decimal(10, 2) // Monto mensual de expensas
+  rentalPeriods RentalPeriod[]
+  expenses      MonthlyExpense[]
+  invoices      Invoice[]
+  payments      Payment[]
+  statements    MonthlyStatement[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propertyGroup PropertyGroup?  @relation(fields: [propertyGroupId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, archived])
+  @@index([propertyGroupId])
+}
+
+enum UnitType {
+  DEPTO
+  CASA
+  COCHERA
+  VIVIENDA
+  LOCAL_COMERCIAL
+  OTRO
+}
+
+enum TenantCondition {
+  VIVIENDA
+  LOCAL_COMERCIAL
+  OTRO
+}
+
+model Tenant {
+  id            String          @id @default(cuid())
+  name          String
+  documentId    String?
+  cuit          String?        // CUIT (si existe)
+  condicion     TenantCondition @default(OTRO) // Vivienda/Local/Otro
+  email         String?
+  phone         String?
+  rentalPeriods RentalPeriod[]
+  statements    MonthlyStatement[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model RentalPeriod {
+  id              String          @id @default(cuid())
+  unitId          String
+  tenantId        String?
+  startDate       DateTime
+  endDate         DateTime
+  priceAmount     Decimal         @db.Decimal(10, 2)
+  currency        Currency
+  billingFrequency BillingFrequency
+  status          RentalStatus
+  notes           String?         @db.Text
+  exemptFromIVA   Boolean         @default(false)
+  unit            Unit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  invoices        Invoice[]
+  payments        Payment[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([unitId, startDate, endDate])
+  @@index([unitId])
+  @@index([tenantId])
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+enum BillingFrequency {
+  MONTHLY
+  WEEKLY
+  DAILY
+  ONE_TIME
+}
+
+enum RentalStatus {
+  RESERVED
+  ACTIVE
+  CANCELLED
+}
+
+model Payment {
+  id              String          @id @default(cuid())
+  userId          String
+  unitId          String
+  rentalPeriodId  String?
+  amount          Decimal         @db.Decimal(10, 2)
+  currency        Currency
+  paymentDate     DateTime
+  paymentMethod   PaymentMethod
+  reference       String?
+  notes           String?         @db.Text
+  unit            Unit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  rentalPeriod    RentalPeriod?   @relation(fields: [rentalPeriodId], references: [id], onDelete: SetNull)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([unitId])
+  @@index([rentalPeriodId])
+  @@index([paymentDate])
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CHECK
+  DEBIT_CARD
+  CREDIT_CARD
+  OTHER
+}
+
+model MonthlyExpense {
+  id              String          @id @default(cuid())
+  unitId          String
+  month           String          // YYYY-MM format
+  date            DateTime        @default(now()) // Specific date when expense was incurred
+  category        ExpenseCategory
+  description     String
+  amount          Decimal         @db.Decimal(10, 2)
+  currency        Currency
+  deductibleFlag  Boolean         @default(false)
+  vendor          String?
+  ivaRatePercent  Decimal?        @db.Decimal(5, 2) // IVA percentage (e.g., 21%)
+  ivaAmount       Decimal?        @db.Decimal(10, 2) // Calculated IVA amount
+  igRatePercent   Decimal?        @db.Decimal(5, 2) // IG (Impuesto a las Ganancias) percentage
+  igAmount        Decimal?        @db.Decimal(10, 2) // Calculated IG amount
+  iibbRatePercent Decimal?        @db.Decimal(5, 2) // IIBB (Ingresos Brutos) percentage
+  iibbAmount      Decimal?        @db.Decimal(10, 2) // Calculated IIBB amount
+  totalAmount     Decimal         @db.Decimal(10, 2) // amount + ivaAmount + igAmount + iibbAmount
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId, month])
+  @@index([month])
+  @@index([date])
+}
+
+enum ExpenseCategory {
+  OSSE
+  INMOB
+  TSU
+  OBRAS
+  OTROS
+}
+
+model TaxProfile {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  ivaEnabled            Boolean  @default(false)
+  ivaRatePercent        Decimal  @default(21) @db.Decimal(5, 2)
+  iibbEnabled           Boolean  @default(false)
+  iibbRatePercent       Decimal  @default(0) @db.Decimal(5, 2)
+  igEstimatePercent     Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TaxWithholdingRule {
+  id              String   @id @default(cuid())
+  unitId          String?
+  rentalPeriodId  String?
+  ivaRatePercent  Decimal? @db.Decimal(5, 2)
+  iibbRatePercent Decimal? @db.Decimal(5, 2)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([unitId])
+  @@index([rentalPeriodId])
+}
+
+model Invoice {
+  id              String          @id @default(cuid())
+  userId          String
+  unitId          String
+  rentalPeriodId  String?
+  issueDate       DateTime
+  concept         String
+  netAmount       Decimal         @db.Decimal(10, 2)
+  ivaAmount       Decimal         @db.Decimal(10, 2)
+  totalAmount     Decimal         @db.Decimal(10, 2)
+  currency        Currency
+  status          InvoiceStatus
+  externalId      String?         // AFIP/ARCA invoice ID
+  cae             String?         // CAE number from AFIP
+  caeDueDate      DateTime?       // CAE expiration date
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit        Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  rentalPeriod RentalPeriod? @relation(fields: [rentalPeriodId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([unitId])
+  @@index([rentalPeriodId])
+  @@index([issueDate])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  ISSUED
+  CANCELLED
+}
+
+enum StatementItemType {
+  CHARGE      // Lo que se le cobra al inquilino
+  DEDUCTION   // Lo que se descuenta al propietario
+  INFO        // Información adicional
+}
+
+model MonthlyStatement {
+  id              String          @id @default(cuid())
+  period          String          // YYYY-MM format
+  unitId          String
+  tenantId        String?
+  // Inputs monetarios
+  alquiler        Decimal         @db.Decimal(10, 2) // Alquiler base
+  osse            Decimal?        @db.Decimal(10, 2) // OSSE
+  inmob           Decimal?        @db.Decimal(10, 2) // Comisión/servicio inmobiliaria
+  tsu             Decimal?        @db.Decimal(10, 2) // TSU
+  obras           Decimal?        @db.Decimal(10, 2) // Obras
+  otrosTotal      Decimal?        @db.Decimal(10, 2) // Total de otros conceptos
+  expensas        Decimal?        @db.Decimal(10, 2) // IMPORTANTE: se carga aparte
+  // Cálculos
+  ivaAlquiler     Decimal?        @db.Decimal(10, 2) // IVA calculado sobre alquiler
+  totalMes        Decimal         @db.Decimal(10, 2) // Total del mes (lo que paga el inquilino)
+  neto            Decimal         @db.Decimal(10, 2) // Neto (Total del mes - expensas)
+  gastos          Decimal         @db.Decimal(10, 2) // Gastos/deducciones (INMOB + OSSE + TSU + OBRAS)
+  neteado         Decimal         @db.Decimal(10, 2) // Neteado (Neto - Gastos)
+  currency        Currency
+  notes           String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  unit            Unit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenant          Tenant?         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  items           StatementItem[]
+
+  @@unique([unitId, period])
+  @@index([period])
+  @@index([unitId])
+  @@index([tenantId])
+}
+
+model StatementItem {
+  id              String          @id @default(cuid())
+  statementId     String
+  type            StatementItemType
+  label           String          // Descripción del concepto
+  amount          Decimal         @db.Decimal(10, 2)
+  currency        Currency
+  isDeduction     Boolean         @default(false) // Si debe descontarse en gastos
+  createdAt       DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  statement       MonthlyStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([statementId])
+}

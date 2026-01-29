@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Unit" ADD COLUMN IF NOT EXISTS "ivaRatePercent" DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS "igRatePercent" DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS "iibbRatePercent" DECIMAL(5,2),
+ADD COLUMN IF NOT EXISTS "monthlyExpensesAmount" DECIMAL(10,2);
