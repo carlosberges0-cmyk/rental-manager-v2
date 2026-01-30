@@ -1,4 +1,4 @@
-import { BIPage } from "@/components/bi/bi-page"
+import { BIPage, type RentalPeriodForBI, type ExpenseForBI, type UnitForBI } from "@/components/bi/bi-page"
 import { calculateTaxes } from "@/lib/actions/taxes"
 import { getRentalPeriods } from "@/lib/actions/rental-periods"
 import { getExpenses } from "@/lib/actions/expenses"
@@ -14,9 +14,9 @@ export default async function BIPageRoute() {
   return (
     <BIPage
       taxData={taxData}
-      rentalPeriods={rentalPeriods}
-      expenses={expenses}
-      units={units}
+      rentalPeriods={rentalPeriods as RentalPeriodForBI[]}
+      expenses={expenses as ExpenseForBI[]}
+      units={units as UnitForBI[]}
     />
   )
 }
