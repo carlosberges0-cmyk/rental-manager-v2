@@ -4,14 +4,13 @@ import { useState } from "react"
 import { format, startOfMonth, endOfMonth, isSameMonth, getYear } from "date-fns"
 import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Unit } from "@prisma/client"
 import { CreateUnitDialog } from "./create-unit-dialog"
 import { CreateRentalPeriodDialog } from "./create-rental-period-dialog"
 import { RentalPeriodDrawer } from "./rental-period-drawer"
-import type { RentalPeriodUI } from "./calendar-types"
+import type { RentalPeriodUI, UnitUI } from "./calendar-types"
 
 interface MonthlyCalendarViewProps {
-  units: Unit[]
+  units: UnitUI[]
   initialRentalPeriods: RentalPeriodUI[]
 }
 
