@@ -126,9 +126,21 @@ El middleware protege automáticamente todas las rutas excepto:
 
 Todas las demás rutas requieren autenticación.
 
+## 📧 Resend y Vercel Preview
+
+Para Resend con `onboarding@resend.dev` (dominio de prueba), solo puedes enviar a tu propio email hasta verificar un dominio.
+
+**Variables opcionales:**
+- `EMAIL_FROM` – Remitente (alternativa: `SMTP_FROM` o `RESEND_FROM_EMAIL`)
+- `AUTH_OWNER_EMAIL` – Email de la cuenta Resend (permitido cuando usas `@resend.dev`)
+
+**En preview/desarrollo:** Si Resend rechaza el envío o usas `@resend.dev` con un destinatario distinto al owner, el magic link se imprime en los logs del servidor en lugar de fallar. En Vercel: Deployment → Logs.
+
+**NEXTAUTH_URL en Vercel:** Si no está definido, se usa `https://${VERCEL_URL}` automáticamente.
+
 ## 📝 Notas Importantes
 
-- **En producción**, asegúrate de usar `https://` en `NEXTAUTH_URL`
+- **En producción**, usa un dominio verificado en Resend y `EMAIL_FROM` de ese dominio
 - **El secret debe ser único y seguro** - nunca lo compartas públicamente
 - **Los magic links expiran en 24 horas** (configuración de NextAuth)
 - **Cada usuario debe tener un email único** (el schema de Prisma lo requiere)

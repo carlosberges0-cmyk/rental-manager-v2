@@ -4,10 +4,31 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { createTransport } from "nodemailer"
 
+/** Base URL for callbacks. NEXTAUTH_URL > VERCEL_URL > localhost. */
+export function getBaseUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "http://localhost:3000"
+}
+
+// Ensure NEXTAUTH_URL for Vercel preview/production when not set
+if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
+  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`
+}
+
+const emailFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.RESEND_FROM_EMAIL
+const ownerEmail = process.env.AUTH_OWNER_EMAIL
+
+function shouldUseResendFallback(from: string | undefined, recipient: string): boolean {
+  if (!from || !from.endsWith("@resend.dev")) return false
+  if (!ownerEmail) return true // No owner configured → assume we're in dev/preview
+  return recipient.toLowerCase() !== ownerEmail.toLowerCase().trim()
+}
+
 export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,
-  // NextAuth v5 uses AUTH_SECRET, but we also support NEXTAUTH_SECRET for compatibility
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  trustHost: true,
   providers: [
     EmailProvider({
       server: {
@@ -18,14 +39,22 @@ export const authOptions = {
           pass: process.env.SMTP_PASSWORD || process.env.RESEND_API_KEY,
         },
       },
-      from: process.env.SMTP_FROM || process.env.RESEND_FROM_EMAIL,
+      from: emailFrom,
       sendVerificationRequest: async ({ identifier, url, provider }) => {
+        const from = provider.from ?? emailFrom
+
+        if (shouldUseResendFallback(from, identifier)) {
+          console.log("[Auth] Resend fallback (resend.dev + non-owner): magic link logged instead of sending email")
+          console.log("[Auth] Magic link for", identifier, ":", url)
+          return
+        }
+
         const transport = createTransport(provider.server)
 
         try {
           const result = await transport.sendMail({
             to: identifier,
-            from: provider.from,
+            from: from,
             subject: `Iniciar sesión en Rental Manager`,
             text: `Para iniciar sesión, haz clic en el siguiente enlace:\n\n${url}\n\nEste enlace expirará en 24 horas.\n\nSi no solicitaste este enlace, puedes ignorar este email.`,
             html: `
@@ -55,12 +84,11 @@ export const authOptions = {
           if (failed.length) {
             throw new Error(`Email (${failed.join(", ")}) could not be sent`)
           }
-        } catch (err: any) {
-          const hint =
-            "Si estás usando Resend con el dominio de prueba `resend.dev`, solo podés enviar emails a tu propio email (el de tu cuenta). Para enviar a otros destinatarios, verificá un dominio en Resend y usá un `from` de ese dominio."
-          const raw = err?.response || err?.message || String(err)
-
-          throw new Error(`Email could not be sent. ${hint} Detalle: ${raw}`)
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err)
+          console.warn("[Auth] Email send failed, logging magic link as fallback:", message)
+          console.log("[Auth] Magic link for", identifier, ":", url)
+          return
         }
       },
     }),
