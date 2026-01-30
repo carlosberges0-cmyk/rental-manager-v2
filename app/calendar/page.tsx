@@ -9,8 +9,6 @@ export default async function CalendarPage() {
   const rentalPeriodsForUI = rentalPeriods.map((rp) => ({
     ...rp,
     priceAmount: Number(rp.priceAmount),
-    startDate: rp.startDate instanceof Date ? rp.startDate.toISOString() : typeof rp.startDate === "string" ? rp.startDate : "",
-    endDate: rp.endDate instanceof Date ? rp.endDate.toISOString() : typeof rp.endDate === "string" ? rp.endDate : "",
   }))
 
   return <MonthlyCalendarView units={units} initialRentalPeriods={rentalPeriodsForUI} />

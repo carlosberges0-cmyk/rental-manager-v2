@@ -15,12 +15,12 @@ import { format } from "date-fns"
 interface PaymentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  units: Unit[]
+  units: Array<{ id: string; name: string }>
   rentalPeriodId?: string
   unitId?: string
   payment?: Payment & { unit: Unit; rentalPeriod: RentalPeriod | null }
   rentalPeriods?: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
-  onSuccess: (payment: any) => void
+  onSuccess: (payment: unknown) => void
 }
 
 export function PaymentDialog({

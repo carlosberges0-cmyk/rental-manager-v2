@@ -8,18 +8,18 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { updateRentalPeriod, deleteRentalPeriod } from "@/lib/actions/rental-periods"
-import { getPayments, createPayment, deletePayment } from "@/lib/actions/payments"
+import { getPayments, deletePayment } from "@/lib/actions/payments"
 import { useToast } from "@/components/ui/toast"
-import { RentalPeriod, Unit, Tenant, Payment } from "@prisma/client"
 import { format } from "date-fns"
 import { PaymentDialog } from "@/components/payments/payment-dialog"
 import { Plus, Trash2 } from "lucide-react"
+import type { RentalPeriodUI } from "./calendar-types"
 
 interface RentalPeriodDrawerProps {
-  rentalPeriod: RentalPeriod & { unit: Unit; tenant: Tenant | null }
+  rentalPeriod: RentalPeriodUI
   open: boolean
   onOpenChange: (open: boolean) => void
-  onUpdate: (period: any) => void
+  onUpdate: (period: RentalPeriodUI) => void
   onDelete?: (id: string) => void
 }
 
@@ -31,7 +31,7 @@ export function RentalPeriodDrawer({
   onDelete,
 }: RentalPeriodDrawerProps) {
   const [loading, setLoading] = useState(false)
-  const [payments, setPayments] = useState<(Payment & { unit: Unit; rentalPeriod: RentalPeriod | null })[]>([])
+  const [payments, setPayments] = useState<{ id: string; amount: number; currency: string; paymentDate: string | Date; paymentMethod: string; reference?: string }[]>([])
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const { addToast } = useToast()
   const [formData, setFormData] = useState({
@@ -53,8 +53,13 @@ export function RentalPeriodDrawer({
 
   const loadPayments = async () => {
     try {
-      const paymentsData = await getPayments(rentalPeriod.unitId, rentalPeriod.id)
-      setPayments(paymentsData as any)
+      const all = await getPayments()
+      const list = Array.isArray(all) ? all : []
+      const filtered = list.filter(
+        (p: { unitId?: string; rentalPeriodId?: string }) =>
+          p.unitId === rentalPeriod.unitId && p.rentalPeriodId === rentalPeriod.id
+      ) as { id: string; amount: number; currency: string; paymentDate: string | Date; paymentMethod: string; reference?: string }[]
+      setPayments(filtered)
     } catch (error) {
       console.error("Error loading payments:", error)
     }
@@ -85,11 +90,25 @@ export function RentalPeriodDrawer({
 
     try {
       const updated = await updateRentalPeriod(rentalPeriod.id, {
-        ...formData,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
         priceAmount: parseFloat(formData.priceAmount),
+        currency: formData.currency as "ARS" | "USD",
+        billingFrequency: formData.billingFrequency as "MONTHLY" | "WEEKLY" | "DAILY" | "ONE_TIME",
+        status: formData.status as "RESERVED" | "ACTIVE" | "CANCELLED",
+        notes: formData.notes || undefined,
+        exemptFromIVA: formData.exemptFromIVA,
       })
+      const normalized: RentalPeriodUI = {
+        ...updated,
+        startDate: updated.startDate instanceof Date ? updated.startDate.toISOString() : String(updated.startDate),
+        endDate: updated.endDate instanceof Date ? updated.endDate.toISOString() : String(updated.endDate),
+        priceAmount: Number(updated.priceAmount),
+        unit: updated.unit ? { id: updated.unit.id, name: updated.unit.name, type: updated.unit.type } : null,
+        tenant: updated.tenant ? { name: updated.tenant.name } : null,
+      }
       addToast({ title: "Actualizado", description: "El período se ha actualizado correctamente" })
-      onUpdate(updated)
+      onUpdate(normalized)
     } catch (error: any) {
       addToast({
         title: "Error",
@@ -134,7 +153,7 @@ export function RentalPeriodDrawer({
         <form onSubmit={handleSubmit} className="space-y-4 p-4">
           <div>
             <Label>Unidad</Label>
-            <Input value={rentalPeriod.unit.name} disabled />
+            <Input value={rentalPeriod.unit?.name ?? "—"} disabled />
           </div>
           <div>
             <Label>Inquilino</Label>
@@ -348,7 +367,7 @@ export function RentalPeriodDrawer({
       </DrawerContent>
 
       {/* Payment Dialog */}
-      {showPaymentDialog && (
+      {showPaymentDialog && rentalPeriod.unit && (
         <PaymentDialog
           open={showPaymentDialog}
           onOpenChange={setShowPaymentDialog}

@@ -4,14 +4,15 @@ import { useState } from "react"
 import { format, startOfMonth, endOfMonth, isSameMonth, getYear } from "date-fns"
 import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Unit, RentalPeriod } from "@prisma/client"
+import { Unit } from "@prisma/client"
 import { CreateUnitDialog } from "./create-unit-dialog"
 import { CreateRentalPeriodDialog } from "./create-rental-period-dialog"
 import { RentalPeriodDrawer } from "./rental-period-drawer"
+import type { RentalPeriodUI } from "./calendar-types"
 
 interface MonthlyCalendarViewProps {
   units: Unit[]
-  initialRentalPeriods: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
+  initialRentalPeriods: RentalPeriodUI[]
 }
 
 const MONTH_WIDTH = 150 // pixels per month (reduced to fit 12 months)
@@ -39,9 +40,8 @@ export function MonthlyCalendarView({ units: initialUnits, initialRentalPeriods 
     const monthEnd = endOfMonth(month)
     
     return getRentalPeriodsForUnit(unitId).filter((rp) => {
-      const start = rp.startDate instanceof Date ? rp.startDate : new Date(rp.startDate)
-      const end = rp.endDate instanceof Date ? rp.endDate : new Date(rp.endDate)
-      // Check if period overlaps with month
+      const start = new Date(rp.startDate)
+      const end = new Date(rp.endDate)
       return start <= monthEnd && end >= monthStart
     })
   }
@@ -216,8 +216,8 @@ export function MonthlyCalendarView({ units: initialUnits, initialRentalPeriods 
                         ) : (
                           <div className="h-full flex flex-col justify-center space-y-1">
                             {primaryPeriod && (() => {
-                              const start = primaryPeriod.startDate instanceof Date ? primaryPeriod.startDate : new Date(primaryPeriod.startDate)
-                              const end = primaryPeriod.endDate instanceof Date ? primaryPeriod.endDate : new Date(primaryPeriod.endDate)
+                              const start = new Date(primaryPeriod.startDate)
+                              const end = new Date(primaryPeriod.endDate)
                               const monthStart = startOfMonth(month)
                               const monthEnd = endOfMonth(month)
                               
@@ -284,9 +284,11 @@ export function MonthlyCalendarView({ units: initialUnits, initialRentalPeriods 
 
       {selectedPeriod && (
         <RentalPeriodDrawer
-          period={selectedPeriod}
+          rentalPeriod={selectedPeriod}
           open={!!selectedPeriod}
-          onClose={() => setSelectedPeriod(null)}
+          onOpenChange={(open) => {
+            if (!open) setSelectedPeriod(null)
+          }}
           onUpdate={(updatedPeriod) => {
             setRentalPeriods(
               rentalPeriods.map((p) => (p.id === updatedPeriod.id ? updatedPeriod : p))
