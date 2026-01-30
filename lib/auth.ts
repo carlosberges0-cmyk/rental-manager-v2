@@ -47,15 +47,22 @@ export const authOptions = {
         const isProd = process.env.VERCEL_ENV === "production"
         const from = process.env.EMAIL_FROM ?? "onboarding@resend.dev"
         const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD
+        const useResendDev = from.endsWith("@resend.dev")
 
-        if (!isProd) {
-          console.log("[AUTH MAGIC LINK]", url)
-        }
-
-        const sendEmail = async () => {
-          if (!apiKey) {
-            throw new Error("RESEND_API_KEY or SMTP_PASSWORD is not configured")
+        try {
+          if (!isProd) {
+            console.log("[AUTH MAGIC LINK]", url)
           }
+
+          if (!isProd && useResendDev) {
+            return
+          }
+
+          if (!apiKey) {
+            if (isProd) throw new Error("RESEND_API_KEY or SMTP_PASSWORD is not configured")
+            return
+          }
+
           const resend = new Resend(apiKey)
           const { error } = await resend.emails.send({
             from,
@@ -64,17 +71,15 @@ export const authOptions = {
             html: htmlTemplate(url),
             text: textTemplate(url),
           })
-          if (error) {
-            throw new Error(typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error))
-          }
-        }
 
-        try {
-          await sendEmail()
-        } catch (err) {
-          if (isProd) {
-            throw err
+          if (error) {
+            if (isProd) {
+              throw new Error(typeof error === "object" && error !== null && "message" in error ? String((error as { message: string }).message) : String(error))
+            }
+            console.warn("[AUTH] Resend rejected (preview):", typeof error === "object" && error !== null && "message" in error ? (error as { message: string }).message : error)
           }
+        } catch (err) {
+          if (isProd) throw err
           console.warn("[AUTH] Email send failed (preview fallback):", err instanceof Error ? err.message : String(err))
         }
       },

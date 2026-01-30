@@ -6,6 +6,8 @@ import { getExpenses } from "@/lib/actions/expenses"
 import { format } from "date-fns"
 import { toUnitUI, toRentalPeriodUI, toExpenseUI } from "@/lib/ui-mappers"
 
+export const dynamic = "force-dynamic"
+
 export default async function StatementsRoute({
   searchParams,
 }: {

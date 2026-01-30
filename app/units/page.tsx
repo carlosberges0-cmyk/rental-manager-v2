@@ -1,7 +1,9 @@
 import { UnitsList } from "@/components/units/units-list"
-import { getUnits } from "@/lib/actions/units"
 import { getPropertyGroups } from "@/lib/actions/property-groups"
+import { getUnits } from "@/lib/actions/units"
 import { toUnitUI } from "@/lib/ui-mappers"
+
+export const dynamic = "force-dynamic"
 
 export default async function UnitsPage() {
   const units = await getUnits()

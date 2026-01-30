@@ -4,6 +4,8 @@ import { getUnitsWithRentalPeriods, getUnits } from "@/lib/actions/units"
 import { getRentalPeriods } from "@/lib/actions/rental-periods"
 import { toExpenseUI, toUnitUI, toRentalPeriodUI } from "@/lib/ui-mappers"
 
+export const dynamic = "force-dynamic"
+
 export default async function ExpensesPage() {
   const expenses = await getExpenses()
   const unitsWithRentals = await getUnitsWithRentalPeriods()

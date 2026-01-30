@@ -34,7 +34,7 @@ export default function SignInPage() {
       if (result.error) {
         if (result.error === "Configuration") {
           setError(
-            "No se pudo enviar el email de acceso. Si estás usando Resend con `onboarding@resend.dev`, Resend solo permite enviar a tu propio email (el de tu cuenta) hasta que verifiques un dominio en Resend y uses un remitente de ese dominio."
+            "No se pudo enviar el email. En preview/desarrollo, revisa los logs del servidor (Vercel → Deployment → Logs) donde puede estar impreso el enlace [AUTH MAGIC LINK]."
           )
         } else {
           setError(`No se pudo enviar el email de acceso (${result.error}).`)

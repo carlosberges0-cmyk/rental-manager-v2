@@ -5,6 +5,8 @@ import { getExpenses } from "@/lib/actions/expenses"
 import { getUnits } from "@/lib/actions/units"
 import { toRentalPeriodUI, toExpenseUI, toUnitUI, toTaxDataUI } from "@/lib/ui-mappers"
 
+export const dynamic = "force-dynamic"
+
 export default async function BIPageRoute() {
   const currentYear = new Date().getFullYear()
   const taxData = await calculateTaxes(currentYear)
