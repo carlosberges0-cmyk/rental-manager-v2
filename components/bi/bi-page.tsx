@@ -4,14 +4,62 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select } from "@/components/ui/select"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
-import { RentalPeriod, MonthlyExpense, Unit } from "@prisma/client"
 import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "date-fns"
 
+/** UI types only — no Prisma. priceAmount is number, not Decimal. */
+type UnitForBI = {
+  id: string
+  name: string
+  ivaRatePercent?: number | null
+  igRatePercent?: number | null
+  iibbRatePercent?: number | null
+  monthlyExpensesAmount?: number | null
+}
+
+type RentalPeriodUI = {
+  id: string
+  unitId: string
+  tenantId: string | null
+  startDate: Date
+  endDate: Date
+  priceAmount: number
+  currency: "ARS" | "USD"
+  billingFrequency: "MONTHLY" | "WEEKLY" | "DAILY" | "ONE_TIME"
+  status: string
+  notes: string | null
+  exemptFromIVA: boolean
+  unit: UnitForBI | null
+  tenant: { name: string } | null
+}
+
+type ExpenseForBI = {
+  id: string
+  unitId: string
+  month: string
+  category: string
+  amount: number
+  totalAmount: number
+  currency: string
+  deductibleFlag: boolean
+  unit: UnitForBI | null
+}
+
+type TaxDataForBI = {
+  income?: number
+  expenses?: number
+  ivaAmount?: number
+  iibbAmount?: number
+  igEstimate?: number
+  deductibleExpenses?: number
+  incomeByMonth?: Record<string, number>
+  expensesByMonth?: Record<string, { total: number; deductible: number }>
+}
+
 interface BIPageProps {
-  taxData: any
-  rentalPeriods: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
-  expenses: (MonthlyExpense & { unit: Unit })[]
-  units: Unit[]
+  taxData: TaxDataForBI
+  rentalPeriods: RentalPeriodUI[]
+  expenses: ExpenseForBI[]
+  units: UnitForBI[]
 }
 
 export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units }: BIPageProps) {
@@ -34,8 +82,8 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
     rentalPeriods
       .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
       .forEach(period => {
-        const periodStart = period.startDate instanceof Date ? period.startDate : new Date(period.startDate)
-        const periodEnd = period.endDate instanceof Date ? period.endDate : new Date(period.endDate)
+        const periodStart = new Date(period.startDate)
+        const periodEnd = new Date(period.endDate)
         
         if (periodStart > yearEnd || periodEnd < yearStart) return
         
@@ -43,7 +91,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
         const actualEnd = new Date(Math.min(periodEnd.getTime(), yearEnd.getTime()))
         const totalDays = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
         
-        const priceAmount = typeof period.priceAmount === 'number' ? period.priceAmount : Number(period.priceAmount) || 0
+        const priceAmount = typeof period.priceAmount === "number" ? period.priceAmount : Number(period.priceAmount) || 0
         
         let monthlyAmount = 0
         if (period.billingFrequency === "MONTHLY") {
@@ -75,11 +123,11 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
         }
         
         // Calculate taxes using unit's tax rates
-        const unit = period.unit as any
+        const unit = period.unit
         if (!period.exemptFromIVA && unit) {
-          const ivaRate = unit.ivaRatePercent ? Number(unit.ivaRatePercent) / 100 : 0
-          const igRate = unit.igRatePercent ? Number(unit.igRatePercent) / 100 : 0
-          const iibbRate = unit.iibbRatePercent ? Number(unit.iibbRatePercent) / 100 : 0
+          const ivaRate = unit.ivaRatePercent != null ? Number(unit.ivaRatePercent) / 100 : 0
+          const igRate = unit.igRatePercent != null ? Number(unit.igRatePercent) / 100 : 0
+          const iibbRate = unit.iibbRatePercent != null ? Number(unit.iibbRatePercent) / 100 : 0
           
           const monthlyTax = monthlyAmount * (ivaRate + igRate + iibbRate)
           
@@ -121,9 +169,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
     // Calculate unit monthly expenses for selected year
     let ytdUnitMonthlyExpenses = 0
     units.forEach(unit => {
-      const monthlyExpensesAmount = (unit as any).monthlyExpensesAmount 
-        ? Number((unit as any).monthlyExpensesAmount) 
-        : 0
+      const monthlyExpensesAmount = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
       if (monthlyExpensesAmount > 0) {
         ytdUnitMonthlyExpenses += monthlyExpensesAmount
       }
@@ -201,7 +247,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
     const yearStart = startOfYear(new Date(selectedYear, 0, 1))
     const yearEnd = endOfYear(new Date(selectedYear, 11, 31))
     const metrics: Record<string, {
-      unit: Unit
+      unit: UnitForBI
       income: number
       expenses: number
       expensas: number
@@ -239,8 +285,8 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
     rentalPeriods
       .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
       .forEach(period => {
-        const periodStart = period.startDate instanceof Date ? period.startDate : new Date(period.startDate)
-        const periodEnd = period.endDate instanceof Date ? period.endDate : new Date(period.endDate)
+        const periodStart = new Date(period.startDate)
+        const periodEnd = new Date(period.endDate)
         
         // Check if period overlaps with selected year
         if (periodStart > yearEnd || periodEnd < yearStart) return
@@ -259,10 +305,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
         const actualEnd = new Date(Math.min(periodEnd.getTime(), yearEnd.getTime()))
         const totalDays = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
-        // Ensure priceAmount is a number
-        const priceAmount = typeof period.priceAmount === 'number' 
-          ? period.priceAmount 
-          : Number(period.priceAmount) || 0
+        const priceAmount = typeof period.priceAmount === "number" ? period.priceAmount : Number(period.priceAmount) || 0
         
         let monthlyAmount = 0
         if (period.billingFrequency === "MONTHLY") {
@@ -294,11 +337,11 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
         }
 
         // Calculate taxes on income using unit's tax rates
-        const unit = period.unit as any
+        const unit = period.unit
         if (!period.exemptFromIVA && unit) {
-          const ivaRate = unit.ivaRatePercent ? Number(unit.ivaRatePercent) / 100 : 0
-          const igRate = unit.igRatePercent ? Number(unit.igRatePercent) / 100 : 0
-          const iibbRate = unit.iibbRatePercent ? Number(unit.iibbRatePercent) / 100 : 0
+          const ivaRate = unit.ivaRatePercent != null ? Number(unit.ivaRatePercent) / 100 : 0
+          const igRate = unit.igRatePercent != null ? Number(unit.igRatePercent) / 100 : 0
+          const iibbRate = unit.iibbRatePercent != null ? Number(unit.iibbRatePercent) / 100 : 0
 
           // Apply taxes to the monthly income
           const monthlyTax = monthlyAmount * (ivaRate + igRate + iibbRate)
@@ -348,10 +391,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
     units.forEach(unit => {
       if (!metrics[unit.id]) return
       
-      // Get monthly expenses amount from unit
-      const monthlyExpensesAmount = (unit as any).monthlyExpensesAmount 
-        ? Number((unit as any).monthlyExpensesAmount) 
-        : 0
+      const monthlyExpensesAmount = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
       
       if (monthlyExpensesAmount > 0) {
         // For annual metrics, multiply monthly expenses by 12
@@ -577,25 +617,25 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
             <div>
               <div className="text-sm text-gray-600 mb-1">IVA</div>
               <div className="text-lg font-semibold text-gray-900">
-                {taxData.ivaAmount.toLocaleString()} {selectedCurrency}
+                {(taxData.ivaAmount ?? 0).toLocaleString()} {selectedCurrency}
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-600 mb-1">IIBB</div>
               <div className="text-lg font-semibold text-gray-900">
-                {taxData.iibbAmount.toLocaleString()} {selectedCurrency}
+                {(taxData.iibbAmount ?? 0).toLocaleString()} {selectedCurrency}
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-600 mb-1">IG (Estimación)</div>
               <div className="text-lg font-semibold text-gray-900">
-                {taxData.igEstimate.toLocaleString()} {selectedCurrency}
+                {(taxData.igEstimate ?? 0).toLocaleString()} {selectedCurrency}
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-600 mb-1">Gastos Deducibles</div>
               <div className="text-lg font-semibold text-gray-900">
-                {taxData.deductibleExpenses.toLocaleString()} {selectedCurrency}
+                {(taxData.deductibleExpenses ?? 0).toLocaleString()} {selectedCurrency}
               </div>
             </div>
           </div>
