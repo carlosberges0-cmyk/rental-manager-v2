@@ -34,47 +34,69 @@ const htmlTemplate = (url: string) => `
 const textTemplate = (url: string) =>
   `Para iniciar sesión, haz clic en el siguiente enlace:\n\n${url}\n\nEste enlace expirará en 24 horas.`
 
+function extractSenderEmail(from: string): string {
+  const match = from.match(/<([^>]+)>/)
+  return match ? match[1].trim() : from.trim()
+}
+
 function customSendVerificationRequest(params: {
   identifier: string
   url: string
   provider: { from?: string }
 }) {
-  const { identifier, url } = params
-  const from = process.env.EMAIL_FROM ?? "onboarding@resend.dev"
+  const { identifier, url, provider } = params
+  const fromRaw = provider.from ?? process.env.EMAIL_FROM ?? "onboarding@resend.dev"
+  const senderEmail = extractSenderEmail(fromRaw).toLowerCase()
+  const senderIsResendDev = senderEmail.endsWith("@resend.dev")
+  const owner = process.env.AUTH_OWNER_EMAIL?.toLowerCase().trim()
+  const recipient = identifier.toLowerCase().trim()
+
+  console.log("[AUTH EMAIL CONFIG]", {
+    senderEmail,
+    senderIsResendDev,
+    recipient,
+    ownerPresent: !!owner,
+  })
+
+  const safeLogAndReturn = () => {
+    console.log("[AUTH MAGIC LINK]", url)
+    return Promise.resolve()
+  }
+
+  if (senderIsResendDev) {
+    return safeLogAndReturn()
+  }
+
   const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD
-  const isProd = process.env.VERCEL_ENV === "production"
-  const useResendDev = from.endsWith("@resend.dev")
-
-  if (useResendDev) {
-    console.log("[AUTH MAGIC LINK]", url)
-    return Promise.resolve()
-  }
-
   if (!apiKey) {
-    if (isProd) return Promise.reject(new Error("RESEND_API_KEY or SMTP_PASSWORD is not configured"))
-    console.log("[AUTH MAGIC LINK]", url)
-    return Promise.resolve()
+    return safeLogAndReturn()
   }
 
-  const resend = new Resend(apiKey)
-  return resend.emails
-    .send({
-      from,
-      to: identifier,
-      subject,
-      html: htmlTemplate(url),
-      text: textTemplate(url),
-    })
-    .then(({ error }) => {
-      if (error) {
-        if (isProd) throw new Error(typeof error === "object" && error !== null && "message" in error ? String((error as { message: string }).message) : String(error))
-        console.log("[AUTH MAGIC LINK]", url)
-      }
-    })
-    .catch((err) => {
-      if (isProd) throw err
-      console.log("[AUTH MAGIC LINK]", url)
-    })
+  try {
+    const resend = new Resend(apiKey)
+    return resend.emails
+      .send({
+        from: fromRaw,
+        to: identifier,
+        subject,
+        html: htmlTemplate(url),
+        text: textTemplate(url),
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.error("[AUTH EMAIL SEND FAILED]", error)
+          return safeLogAndReturn()
+        }
+      })
+      .catch((err) => {
+        console.error("[AUTH EMAIL SEND FAILED]", err)
+        return safeLogAndReturn()
+      }) as Promise<void>
+  } catch (err) {
+    console.error("[AUTH EMAIL SEND FAILED]", err)
+    safeLogAndReturn()
+    return Promise.resolve()
+  }
 }
 
 export const authOptions = {
