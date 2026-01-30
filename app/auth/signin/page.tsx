@@ -32,8 +32,9 @@ export default function SignInPage() {
       }
 
       if (result.error) {
+        const errorDetail = result.error
         setError(
-          "No se pudo completar el envío. Revisá los logs del servidor (Vercel → Deployment → Logs): deberías ver [AUTH EMAIL CONFIG] y [AUTH MAGIC LINK] con el enlace para iniciar sesión. Si no aparecen, verifica la conexión a la base de datos."
+          `Error (${errorDetail}): Revisá Vercel → Deployment → Logs. Deberías ver [AUTH EMAIL CONFIG] y [AUTH MAGIC LINK] con el enlace. Si no aparecen, puede ser problema de base de datos (VerificationToken) o variables de entorno.`
         )
         return
       }

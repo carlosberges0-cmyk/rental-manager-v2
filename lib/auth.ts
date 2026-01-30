@@ -1,4 +1,5 @@
 import NextAuth, { type NextAuthConfig } from "next-auth"
+import ResendProvider from "next-auth/providers/resend"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { Resend } from "resend"
 import { prisma } from "@/lib/prisma"
@@ -124,15 +125,14 @@ export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,
   secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
   trustHost: true,
+  debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
   providers: [
-    {
+    ResendProvider({
       id: "email",
-      type: "email",
-      name: "Email",
+      apiKey: process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD ?? "",
       from: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
-      maxAge: 24 * 60 * 60,
       sendVerificationRequest: customSendVerificationRequest,
-    },
+    }),
   ],
   pages: {
     signIn: "/auth/signin",
@@ -142,6 +142,10 @@ export const authOptions = {
     strategy: "jwt",
   },
   callbacks: {
+    async signIn({ email }) {
+      if (email?.verificationRequest) return true
+      return true
+    },
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub
