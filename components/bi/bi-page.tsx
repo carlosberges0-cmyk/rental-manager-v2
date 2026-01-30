@@ -6,60 +6,13 @@ import { Select } from "@/components/ui/select"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "date-fns"
 
-/** UI types only — no Prisma. priceAmount is number, not Decimal. */
-type UnitForBI = {
-  id: string
-  name: string
-  ivaRatePercent?: number | null
-  igRatePercent?: number | null
-  iibbRatePercent?: number | null
-  monthlyExpensesAmount?: number | null
-}
-
-type RentalPeriodUI = {
-  id: string
-  unitId: string
-  tenantId: string | null
-  startDate: Date
-  endDate: Date
-  priceAmount: number
-  currency: "ARS" | "USD"
-  billingFrequency: "MONTHLY" | "WEEKLY" | "DAILY" | "ONE_TIME"
-  status: string
-  notes: string | null
-  exemptFromIVA: boolean
-  unit: UnitForBI | null
-  tenant: { name: string } | null
-}
-
-type ExpenseForBI = {
-  id: string
-  unitId: string
-  month: string
-  category: string
-  amount: number
-  totalAmount: number
-  currency: string
-  deductibleFlag: boolean
-  unit: UnitForBI | null
-}
-
-type TaxDataForBI = {
-  income?: number
-  expenses?: number
-  ivaAmount?: number
-  iibbAmount?: number
-  igEstimate?: number
-  deductibleExpenses?: number
-  incomeByMonth?: Record<string, number>
-  expensesByMonth?: Record<string, { total: number; deductible: number }>
-}
+import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
 interface BIPageProps {
-  taxData: TaxDataForBI
+  taxData: TaxDataUI
   rentalPeriods: RentalPeriodUI[]
-  expenses: ExpenseForBI[]
-  units: UnitForBI[]
+  expenses: ExpenseUI[]
+  units: UnitUI[]
 }
 
 export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units }: BIPageProps) {
@@ -247,7 +200,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
     const yearStart = startOfYear(new Date(selectedYear, 0, 1))
     const yearEnd = endOfYear(new Date(selectedYear, 11, 31))
     const metrics: Record<string, {
-      unit: UnitForBI
+      unit: UnitUI
       income: number
       expenses: number
       expensas: number

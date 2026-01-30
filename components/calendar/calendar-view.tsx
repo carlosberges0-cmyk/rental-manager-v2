@@ -4,17 +4,17 @@ import { useState, useRef, useEffect } from "react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, startOfWeek, endOfWeek, isSameMonth, isToday, addDays, subDays } from "date-fns"
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Unit, RentalPeriod } from "@prisma/client"
 import { RentalPeriodBlock } from "./rental-period-block"
 import { CreateUnitDialog } from "./create-unit-dialog"
 import { CreateRentalPeriodDialog } from "./create-rental-period-dialog"
 import { RentalPeriodDrawer } from "./rental-period-drawer"
+import type { UnitUI, RentalPeriodUI } from "@/lib/ui-types"
 
 type ViewMode = "day" | "week" | "month"
 
 interface CalendarViewProps {
-  units: Unit[]
-  initialRentalPeriods: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
+  units: UnitUI[]
+  initialRentalPeriods: RentalPeriodUI[]
 }
 
 export function CalendarView({ units: initialUnits, initialRentalPeriods }: CalendarViewProps) {
@@ -236,7 +236,7 @@ export function CalendarView({ units: initialUnits, initialRentalPeriods }: Cale
           onOpenChange={setShowCreateRental}
           units={units}
           onSuccess={(period) => {
-            setRentalPeriods([...rentalPeriods, period as any])
+            setRentalPeriods([...rentalPeriods, period])
             setShowCreateRental(false)
           }}
         />

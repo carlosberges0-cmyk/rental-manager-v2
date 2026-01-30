@@ -13,7 +13,8 @@ import { useToast } from "@/components/ui/toast"
 import { format } from "date-fns"
 import { PaymentDialog } from "@/components/payments/payment-dialog"
 import { Plus, Trash2 } from "lucide-react"
-import type { RentalPeriodUI } from "./calendar-types"
+import type { RentalPeriodUI } from "@/lib/ui-types"
+import { toRentalPeriodUI } from "@/lib/ui-mappers"
 
 interface RentalPeriodDrawerProps {
   rentalPeriod: RentalPeriodUI
@@ -99,14 +100,7 @@ export function RentalPeriodDrawer({
         notes: formData.notes || undefined,
         exemptFromIVA: formData.exemptFromIVA,
       })
-      const normalized: RentalPeriodUI = {
-        ...updated,
-        startDate: updated.startDate instanceof Date ? updated.startDate.toISOString() : String(updated.startDate),
-        endDate: updated.endDate instanceof Date ? updated.endDate.toISOString() : String(updated.endDate),
-        priceAmount: Number(updated.priceAmount),
-        unit: updated.unit ? { id: updated.unit.id, name: updated.unit.name, type: updated.unit.type } : null,
-        tenant: updated.tenant ? { name: updated.tenant.name } : null,
-      }
+      const normalized = toRentalPeriodUI(updated)
       addToast({ title: "Actualizado", description: "El período se ha actualizado correctamente" })
       onUpdate(normalized)
     } catch (error: any) {

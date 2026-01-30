@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { createUnit } from "@/lib/actions/units"
 import { useToast } from "@/components/ui/toast"
-import { Unit } from "@prisma/client"
 import { Plus } from "lucide-react"
+import type { UnitUI } from "@/lib/ui-types"
+import { toUnitUI } from "@/lib/ui-mappers"
 
 interface CreateUnitDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: (unit: Unit) => void
+  onSuccess: (unit: UnitUI) => void
 }
 
 export function CreateUnitDialog({ open, onOpenChange, onSuccess }: CreateUnitDialogProps) {
@@ -38,7 +39,8 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess }: CreateUnitDi
     try {
       const unit = await createUnit(formData)
       addToast({ title: "Unidad creada", description: "La unidad se ha creado correctamente" })
-      onSuccess(unit)
+      const unitUI = toUnitUI(unit)
+      if (unitUI) onSuccess(unitUI)
       setFormData({ 
         name: "", 
         address: "", 

@@ -9,8 +9,9 @@ import { Select } from "@/components/ui/select"
 import { createPayment, updatePayment } from "@/lib/actions/payments"
 import { getRentalPeriods } from "@/lib/actions/rental-periods"
 import { useToast } from "@/components/ui/toast"
-import { Unit, RentalPeriod, Payment } from "@prisma/client"
 import { format } from "date-fns"
+import type { RentalPeriodUI } from "@/lib/ui-types"
+import { toRentalPeriodUI } from "@/lib/ui-mappers"
 
 interface PaymentDialogProps {
   open: boolean
@@ -18,8 +19,8 @@ interface PaymentDialogProps {
   units: Array<{ id: string; name: string }>
   rentalPeriodId?: string
   unitId?: string
-  payment?: Payment & { unit: Unit; rentalPeriod: RentalPeriod | null }
-  rentalPeriods?: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
+  payment?: { id: string; unitId: string; amount: number; currency: string; paymentDate: string | Date; paymentMethod: string; reference?: string; notes?: string; rentalPeriodId?: string }
+  rentalPeriods?: RentalPeriodUI[]
   onSuccess: (payment: unknown) => void
 }
 
@@ -34,30 +35,42 @@ export function PaymentDialog({
   onSuccess,
 }: PaymentDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [rentalPeriods, setRentalPeriods] = useState<(RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]>([])
+  const [rentalPeriods, setRentalPeriods] = useState<RentalPeriodUI[]>([])
   const { addToast } = useToast()
-  const [formData, setFormData] = useState({
+  type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "DEBIT_CARD" | "CREDIT_CARD" | "OTHER"
+  const [formData, setFormData] = useState<{
+    unitId: string
+    rentalPeriodId: string
+    amount: string
+    currency: "ARS" | "USD"
+    paymentDate: string
+    paymentMethod: PaymentMethod
+    reference: string
+    notes: string
+  }>({
     unitId: unitId || payment?.unitId || units[0]?.id || "",
     rentalPeriodId: rentalPeriodId || payment?.rentalPeriodId || "",
     amount: payment ? Number(payment.amount).toString() : "",
-    currency: payment?.currency || "ARS",
+    currency: (payment?.currency || "ARS") as "ARS" | "USD",
     paymentDate: payment
       ? format(new Date(payment.paymentDate), "yyyy-MM-dd")
       : format(new Date(), "yyyy-MM-dd"),
-    paymentMethod: payment?.paymentMethod || "TRANSFER",
+    paymentMethod: (payment?.paymentMethod || "TRANSFER") as PaymentMethod,
     reference: payment?.reference || "",
     notes: payment?.notes || "",
   })
 
   useEffect(() => {
     if (externalRentalPeriods && externalRentalPeriods.length > 0) {
-      setRentalPeriods(externalRentalPeriods as any)
+      setRentalPeriods(externalRentalPeriods)
     } else if (formData.unitId && !externalRentalPeriods) {
-      // Only fetch if externalRentalPeriods is not provided
-      getRentalPeriods(formData.unitId).then(setRentalPeriods).catch((error) => {
-        console.error("Error loading rental periods:", error)
-        setRentalPeriods([])
-      })
+      getRentalPeriods(formData.unitId)
+        .then((rps) => rps.map((rp) => toRentalPeriodUI(rp)))
+        .then(setRentalPeriods)
+        .catch((error) => {
+          console.error("Error loading rental periods:", error)
+          setRentalPeriods([])
+        })
     }
   }, [formData.unitId, externalRentalPeriods])
 

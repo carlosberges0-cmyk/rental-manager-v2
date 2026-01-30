@@ -4,15 +4,16 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import { format, startOfWeek, addDays, subDays, isToday, eachDayOfInterval, startOfMonth, endOfMonth } from "date-fns"
 import { Plus, ChevronLeft, ChevronRight, Calendar, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Unit, RentalPeriod } from "@prisma/client"
 import { RentalPeriodBlock } from "./rental-period-block"
 import { CreateUnitDialog } from "./create-unit-dialog"
 import { CreateRentalPeriodDialog } from "./create-rental-period-dialog"
 import { RentalPeriodDrawer } from "./rental-period-drawer"
+import type { UnitUI, RentalPeriodUI } from "@/lib/ui-types"
+import { toRentalPeriodUI } from "@/lib/ui-mappers"
 
 interface CalendarViewProps {
-  units: Unit[]
-  initialRentalPeriods: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
+  units: UnitUI[]
+  initialRentalPeriods: RentalPeriodUI[]
 }
 
 const DAYS_TO_RENDER = 90 // Render 90 days initially (can be extended)
@@ -20,18 +21,7 @@ const COLUMN_WIDTH = 120 // pixels per day - wider for better visibility
 
 export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods }: CalendarViewProps) {
   const [units, setUnits] = useState(initialUnits)
-  // Convert dates from strings to Date objects when initializing
-  const [rentalPeriods, setRentalPeriods] = useState(() => 
-    (initialRentalPeriods || []).map(period => ({
-      ...period,
-      startDate: period.startDate instanceof Date 
-        ? period.startDate 
-        : new Date(period.startDate),
-      endDate: period.endDate instanceof Date 
-        ? period.endDate 
-        : new Date(period.endDate),
-    }))
-  )
+  const [rentalPeriods, setRentalPeriods] = useState<RentalPeriodUI[]>(initialRentalPeriods || [])
   const [currentStartDate, setCurrentStartDate] = useState(() => {
     const today = new Date()
     return startOfWeek(today) // Start from today's week
@@ -41,7 +31,7 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
     const start = startOfWeek(today)
     return eachDayOfInterval({ start, end: addDays(start, DAYS_TO_RENDER - 1) })
   })
-  const [selectedPeriod, setSelectedPeriod] = useState<(typeof initialRentalPeriods)[0] | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState<RentalPeriodUI | null>(null)
   const [showCreateUnit, setShowCreateUnit] = useState(false)
   const [showCreateRental, setShowCreateRental] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -141,8 +131,8 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
       return unitMatches && statusMatches
     }).sort((a, b) => {
       // Sort by start date
-      const aStart = a.startDate instanceof Date ? a.startDate : new Date(a.startDate)
-      const bStart = b.startDate instanceof Date ? b.startDate : new Date(b.startDate)
+      const aStart = new Date(a.startDate)
+      const bStart = new Date(b.startDate)
       return aStart.getTime() - bStart.getTime()
     })
   }
@@ -377,8 +367,8 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
               const getActivePeriodForDay = (day: Date) => {
                 const dayStr = format(day, "yyyy-MM-dd")
                 return unitPeriods.find((rp) => {
-                  const start = rp.startDate instanceof Date ? rp.startDate : new Date(rp.startDate)
-                  const end = rp.endDate instanceof Date ? rp.endDate : new Date(rp.endDate)
+                  const start = new Date(rp.startDate)
+                  const end = new Date(rp.endDate)
                   const startStr = format(start, "yyyy-MM-dd")
                   const endStr = format(end, "yyyy-MM-dd")
                   return dayStr >= startStr && dayStr <= endStr
@@ -400,14 +390,8 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
                     const isWeekendDay = isWeekend(day)
                     const isFirstOfMonth = day.getDate() === 1
                     const activePeriod = getActivePeriodForDay(day)
-                    const isFirstDayOfPeriod = activePeriod && format(day, "yyyy-MM-dd") === format(
-                      activePeriod.startDate instanceof Date ? activePeriod.startDate : new Date(activePeriod.startDate),
-                      "yyyy-MM-dd"
-                    )
-                    const isLastDayOfPeriod = activePeriod && format(day, "yyyy-MM-dd") === format(
-                      activePeriod.endDate instanceof Date ? activePeriod.endDate : new Date(activePeriod.endDate),
-                      "yyyy-MM-dd"
-                    )
+                    const isFirstDayOfPeriod = activePeriod && format(day, "yyyy-MM-dd") === format(new Date(activePeriod.startDate), "yyyy-MM-dd")
+                    const isLastDayOfPeriod = activePeriod && format(day, "yyyy-MM-dd") === format(new Date(activePeriod.endDate), "yyyy-MM-dd")
                     
                     // Determine background color based on period status
                     let cellBgColor = isWeekendDay ? '#fafafa' : 'white'
@@ -431,12 +415,11 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
                         height: "80px",
                         minHeight: "80px",
                         maxHeight: "80px",
-                        borderRight: dayIndex < visibleDays.length - 1 ? '1px solid #e5e7eb' : 'none',
+                        borderRight: (isLastDayOfPeriod && dayIndex < visibleDays.length - 1) ? '3px solid #1B5E20' : (dayIndex < visibleDays.length - 1 ? '1px solid #e5e7eb' : 'none'),
                         backgroundColor: cellBgColor,
                         borderLeft: isFirstDayOfPeriod ? '3px solid #1B5E20' : 'none',
-                        borderRight: isLastDayOfPeriod && dayIndex < visibleDays.length - 1 ? '3px solid #1B5E20' : 'none',
                       }}
-                      onClick={() => activePeriod && setSelectedPeriod(activePeriod as any)}
+                      onClick={() => activePeriod && setSelectedPeriod(activePeriod)}
                       onMouseEnter={(e) => {
                         if (activePeriod) {
                           e.currentTarget.style.opacity = '0.85'
@@ -463,9 +446,9 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
                             {Number(activePeriod.priceAmount).toLocaleString()} {activePeriod.currency}
                           </div>
                           <div className="text-white text-[10px] flex items-center justify-center gap-1 bg-black/15 rounded px-2 py-0.5">
-                            <span className="font-medium">{format(activePeriod.startDate instanceof Date ? activePeriod.startDate : new Date(activePeriod.startDate), "d/M")}</span>
+                            <span className="font-medium">{format(new Date(activePeriod.startDate), "d/M")}</span>
                             <span>→</span>
-                            <span className="font-medium">{format(activePeriod.endDate instanceof Date ? activePeriod.endDate : new Date(activePeriod.endDate), "d/M")}</span>
+                            <span className="font-medium">{format(new Date(activePeriod.endDate), "d/M")}</span>
                           </div>
                         </div>
                       )}
@@ -518,20 +501,9 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
               const fullPeriod = await getRentalPeriod(period.id)
               
               if (fullPeriod) {
-                // Convert dates from strings to Date objects (they come as strings from server)
-                const newPeriod: any = {
-                  ...fullPeriod,
-                  startDate: fullPeriod.startDate instanceof Date 
-                    ? fullPeriod.startDate 
-                    : new Date(fullPeriod.startDate),
-                  endDate: fullPeriod.endDate instanceof Date 
-                    ? fullPeriod.endDate 
-                    : new Date(fullPeriod.endDate),
-                }
+                const newPeriod = toRentalPeriodUI(fullPeriod)
                 
-                // Add to state using functional update
                 setRentalPeriods((prev) => {
-                  // Check if period already exists
                   const exists = prev.some(p => p.id === newPeriod.id)
                   if (exists) {
                     return prev.map(p => p.id === newPeriod.id ? newPeriod : p)
@@ -539,10 +511,7 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
                   return [...prev, newPeriod]
                 })
                 
-                // Get start date and check if it's visible
-                const startDate = newPeriod.startDate instanceof Date 
-                  ? newPeriod.startDate 
-                  : new Date(newPeriod.startDate)
+                const startDate = new Date(newPeriod.startDate)
                 const startDateStr = format(startDate, "yyyy-MM-dd")
                 
                 // Check if date is in visible range
@@ -585,18 +554,8 @@ export function InfiniteCalendarView({ units: initialUnits, initialRentalPeriods
           open={!!selectedPeriod}
           onOpenChange={(open) => !open && setSelectedPeriod(null)}
           onUpdate={(updated) => {
-            // Ensure dates are Date objects when updating
-            const updatedPeriod = {
-              ...updated,
-              startDate: updated.startDate instanceof Date 
-                ? updated.startDate 
-                : new Date(updated.startDate),
-              endDate: updated.endDate instanceof Date 
-                ? updated.endDate 
-                : new Date(updated.endDate),
-            }
             setRentalPeriods(
-              rentalPeriods.map((rp) => (rp.id === updatedPeriod.id ? updatedPeriod : rp))
+              rentalPeriods.map((rp) => (rp.id === updated.id ? updated : rp))
             )
             setSelectedPeriod(null)
           }}

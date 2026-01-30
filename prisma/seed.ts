@@ -122,7 +122,7 @@ async function main() {
     data: {
       unitId: unit1.id,
       month: currentMonth,
-      category: "EXPENSAS",
+      category: "OBRAS",
       description: "Expensas del mes",
       amount: 15000,
       currency: "ARS",
@@ -135,7 +135,7 @@ async function main() {
     data: {
       unitId: unit1.id,
       month: currentMonth,
-      category: "MANTENIMIENTO",
+      category: "OBRAS",
       description: "Reparación de calefacción",
       amount: 5000,
       currency: "ARS",
@@ -149,7 +149,7 @@ async function main() {
     data: {
       unitId: unit2.id,
       month: currentMonth,
-      category: "SERVICIOS",
+      category: "OTROS",
       description: "Limpieza mensual",
       amount: 8000,
       currency: "ARS",

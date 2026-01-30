@@ -1,11 +1,11 @@
 "use client"
 
-import { RentalPeriod } from "@prisma/client"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import type { RentalPeriodUI } from "@/lib/ui-types"
 
 interface RentalPeriodBlockProps {
-  rentalPeriod: RentalPeriod & { unit?: { name: string }; tenant?: { name: string } | null }
+  rentalPeriod: RentalPeriodUI
   day: Date
   isFirstDay: boolean
   isLastDay: boolean
@@ -29,8 +29,8 @@ export function RentalPeriodBlock({
   totalDays,
   leftOffset,
 }: RentalPeriodBlockProps) {
-  const startDate = rentalPeriod.startDate instanceof Date ? rentalPeriod.startDate : new Date(rentalPeriod.startDate)
-  const endDate = rentalPeriod.endDate instanceof Date ? rentalPeriod.endDate : new Date(rentalPeriod.endDate)
+  const startDate = new Date(rentalPeriod.startDate)
+  const endDate = new Date(rentalPeriod.endDate)
   
   // Calculate width and position for infinite calendar
   const style: React.CSSProperties = {}

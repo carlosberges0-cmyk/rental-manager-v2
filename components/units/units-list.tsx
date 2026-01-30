@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Unit } from "@prisma/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2, FolderTree, Building2 } from "lucide-react"
@@ -14,17 +13,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
+import type { UnitUI } from "@/lib/ui-types"
+import { toUnitUI } from "@/lib/ui-mappers"
 
 interface UnitsListProps {
-  initialUnits: Unit[]
-  initialPropertyGroups?: any[]
+  initialUnits: UnitUI[]
+  initialPropertyGroups?: unknown[]
 }
 
 export function UnitsList({ initialUnits, initialPropertyGroups = [] }: UnitsListProps) {
   const [units, setUnits] = useState(initialUnits)
   const [propertyGroups, setPropertyGroups] = useState(initialPropertyGroups)
   const [showCreate, setShowCreate] = useState(false)
-  const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
+  const [editingUnit, setEditingUnit] = useState<UnitUI | null>(null)
   const [showGroups, setShowGroups] = useState(false)
   const { addToast } = useToast()
   const router = useRouter()
@@ -45,13 +46,13 @@ export function UnitsList({ initialUnits, initialPropertyGroups = [] }: UnitsLis
     }
   }
 
-  const handleUpdate = async (unit: Unit, data: any) => {
+  type UnitUpdateData = { name: string; address?: string; type?: "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"; propertyGroupId?: string; notes?: string; ivaRatePercent?: string; igRatePercent?: string; iibbRatePercent?: string; monthlyExpensesAmount?: string }
+  const handleUpdate = async (unit: UnitUI, data: UnitUpdateData) => {
     try {
-      // Ensure all fields are sent, converting empty strings to empty strings (server will handle conversion)
       const updateData = {
         name: data.name,
         address: data.address || "",
-        type: data.type,
+        type: data.type || "DEPTO",
         propertyGroupId: data.propertyGroupId || "",
         notes: data.notes || "",
         ivaRatePercent: data.ivaRatePercent || "",
@@ -61,7 +62,8 @@ export function UnitsList({ initialUnits, initialPropertyGroups = [] }: UnitsLis
       }
       
       const updated = await updateUnit(unit.id, updateData)
-      setUnits(units.map((u) => (u.id === updated.id ? updated : u)))
+      const updatedUI = toUnitUI(updated)
+      setUnits(units.map((u) => (u.id === updated.id && updatedUI ? updatedUI : u)))
       setEditingUnit(null)
       addToast({ title: "Unidad actualizada", description: "La unidad se ha actualizado correctamente" })
       // Refresh server components to update expenses and BI pages
@@ -368,18 +370,19 @@ function EditUnitDialog({
   onSave,
   propertyGroups = [],
 }: {
-  unit: Unit & { ivaRatePercent?: number | null; igRatePercent?: number | null; iibbRatePercent?: number | null; monthlyExpensesAmount?: number | null; propertyGroupId?: string | null }
+  unit: UnitUI
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (data: any) => void
+  onSave: (data: { name: string; address?: string; type: "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"; propertyGroupId?: string; notes?: string; ivaRatePercent?: string; igRatePercent?: string; iibbRatePercent?: string; monthlyExpensesAmount?: string }) => void
   propertyGroups?: any[]
 }) {
   const [loading, setLoading] = useState(false)
+  type UnitType = "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"
   const [formData, setFormData] = useState({
     name: unit.name,
     address: unit.address || "",
-    type: unit.type,
-    propertyGroupId: (unit as any).propertyGroupId || "",
+    type: (unit.type || "DEPTO") as UnitType,
+    propertyGroupId: unit.propertyGroupId || "",
     notes: unit.notes || "",
     ivaRatePercent: unit.ivaRatePercent ? Number(unit.ivaRatePercent).toString() : "",
     igRatePercent: unit.igRatePercent ? Number(unit.igRatePercent).toString() : "",
@@ -423,7 +426,7 @@ function EditUnitDialog({
             <Select
               id="type"
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as UnitType })}
               required
             >
               <option value="DEPTO">Departamento</option>

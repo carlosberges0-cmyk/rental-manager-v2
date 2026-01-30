@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { MonthlyExpense, Unit, RentalPeriod } from "@prisma/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2 } from "lucide-react"
@@ -13,11 +12,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
+import type { ExpenseUI, UnitWithRentalPeriodsUI, RentalPeriodUI } from "@/lib/ui-types"
+import { toExpenseUI } from "@/lib/ui-mappers"
 
 interface ExpensesListProps {
-  initialExpenses: (MonthlyExpense & { unit: Unit })[]
-  units: (Unit & { rentalPeriods?: RentalPeriod[] })[]
-  rentalPeriods?: (RentalPeriod & { unit: Unit; tenant: { name: string } | null })[]
+  initialExpenses: ExpenseUI[]
+  units: UnitWithRentalPeriodsUI[]
+  rentalPeriods?: RentalPeriodUI[]
 }
 
 const categoryLabels: Record<string, string> = {
@@ -64,20 +65,12 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
     }
   }
 
-  const handleUpdate = async (expense: (typeof initialExpenses)[0], data: any) => {
-    try {
-      const updated = await updateExpense(expense.id, data)
-      setExpenses(expenses.map((e) => (e.id === updated.id ? updated : e)))
-      setEditingExpense(null)
-      addToast({ title: "Gasto actualizado", description: "El gasto se ha actualizado correctamente" })
-      router.refresh() // Refresh to update server data
-    } catch (error: any) {
-      addToast({
-        title: "Error",
-        description: error.message || "No se pudo actualizar el gasto",
-        variant: "destructive",
-      })
-    }
+  const handleUpdate = (expense: ExpenseUI, updatedFromApi: unknown) => {
+    const updated = toExpenseUI(updatedFromApi)
+    setExpenses(expenses.map((e) => (e.id === updated.id ? updated : e)))
+    setEditingExpense(null)
+    addToast({ title: "Gasto actualizado", description: "El gasto se ha actualizado correctamente" })
+    router.refresh()
   }
 
   // Calculate balance for current month
@@ -88,7 +81,7 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
 
   const balanceByUnit = useMemo(() => {
     const balance: Record<string, {
-      unit: Unit & { ivaRatePercent?: number | null; igRatePercent?: number | null; iibbRatePercent?: number | null }
+      unit: UnitWithRentalPeriodsUI
       income: number
       manualExpenses: number  // Gastos manuales (no EXPENSAS)
       expensas: number        // Solo categoría EXPENSAS
@@ -96,14 +89,14 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
       calculatedTaxes: number // Impuestos calculados del precio de alquiler
       net: number
       currency: string
-      expensesList: (typeof initialExpenses)[] // Lista de gastos para esta unidad
+      expensesList: ExpenseUI[]
     }> = {}
 
     // First, get unit tax rates
     units.forEach(unit => {
       if (!balance[unit.id]) {
         balance[unit.id] = {
-          unit: unit as any,
+          unit,
           income: 0,
           manualExpenses: 0,
           expensas: 0,
@@ -116,7 +109,7 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
       }
       
       // Add unit's monthly expenses
-      const monthlyExpenses = (unit as any).monthlyExpensesAmount ? Number((unit as any).monthlyExpensesAmount) : 0
+      const monthlyExpenses = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
       balance[unit.id].unitMonthlyExpenses = monthlyExpenses
     })
 
@@ -124,8 +117,8 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
     rentalPeriods?.forEach(period => {
       if (period.status === "CANCELLED") return
       
-      const periodStart = period.startDate instanceof Date ? period.startDate : new Date(period.startDate)
-      const periodEnd = period.endDate instanceof Date ? period.endDate : new Date(period.endDate)
+      const periodStart = new Date(period.startDate)
+      const periodEnd = new Date(period.endDate)
       
       // Check if period overlaps with current month
       const periodOverlapsMonth = 
@@ -137,10 +130,12 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
 
       const unitId = period.unitId
       const unit = units.find(u => u.id === unitId)
+      const unitForBalance = unit ?? (period.unit ? { ...period.unit, rentalPeriods: [] } : null)
+      if (!unitForBalance) return
       
       if (!balance[unitId]) {
         balance[unitId] = {
-          unit: unit || period.unit as any,
+          unit: unitForBalance,
           income: 0,
           manualExpenses: 0,
           expensas: 0,
@@ -155,11 +150,11 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
       // Always update unit's monthly expenses from the units array (most up-to-date)
       const unitFromList = units.find(u => u.id === unitId)
       if (unitFromList) {
-        const monthlyExpenses = (unitFromList as any).monthlyExpensesAmount ? Number((unitFromList as any).monthlyExpensesAmount) : 0
+        const monthlyExpenses = unitFromList.monthlyExpensesAmount != null ? Number(unitFromList.monthlyExpensesAmount) : 0
         balance[unitId].unitMonthlyExpenses = monthlyExpenses
       } else if (unit) {
         // Fallback to unit from period if not found in units list
-        const monthlyExpenses = (unit as any).monthlyExpensesAmount ? Number((unit as any).monthlyExpensesAmount) : 0
+        const monthlyExpenses = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
         balance[unitId].unitMonthlyExpenses = monthlyExpenses
       }
 
@@ -185,9 +180,9 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
 
       // Calculate taxes on income using unit's tax rates (unless exempt from IVA)
       if (unit && !period.exemptFromIVA) {
-        const ivaRate = (unit as any).ivaRatePercent ? Number((unit as any).ivaRatePercent) / 100 : 0
-        const igRate = (unit as any).igRatePercent ? Number((unit as any).igRatePercent) / 100 : 0
-        const iibbRate = (unit as any).iibbRatePercent ? Number((unit as any).iibbRatePercent) / 100 : 0
+        const ivaRate = unit.ivaRatePercent != null ? Number(unit.ivaRatePercent) / 100 : 0
+        const igRate = unit.igRatePercent != null ? Number(unit.igRatePercent) / 100 : 0
+        const iibbRate = unit.iibbRatePercent != null ? Number(unit.iibbRatePercent) / 100 : 0
 
         const ivaAmount = monthlyIncome * ivaRate
         const igAmount = monthlyIncome * igRate
@@ -202,9 +197,12 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
       if (expense.month !== currentMonth) return
       
       const unitId = expense.unitId
+      const unitForExpense = units.find(u => u.id === unitId) ?? (expense.unit ? { ...expense.unit, rentalPeriods: [] } : null)
+      if (!unitForExpense) return
+      
       if (!balance[unitId]) {
         balance[unitId] = {
-          unit: expense.unit as any,
+          unit: unitForExpense,
           income: 0,
           manualExpenses: 0,
           expensas: 0,
@@ -219,11 +217,10 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
       // Always update unit's monthly expenses from the units array (most up-to-date)
       const unitFromList = units.find(u => u.id === unitId)
       if (unitFromList) {
-        const monthlyExpenses = (unitFromList as any).monthlyExpensesAmount ? Number((unitFromList as any).monthlyExpensesAmount) : 0
+        const monthlyExpenses = unitFromList.monthlyExpensesAmount != null ? Number(unitFromList.monthlyExpensesAmount) : 0
         balance[unitId].unitMonthlyExpenses = monthlyExpenses
-      } else {
-        // Fallback to expense.unit if not found in units list
-        const monthlyExpenses = (expense.unit as any).monthlyExpensesAmount ? Number((expense.unit as any).monthlyExpensesAmount) : 0
+      } else if (expense.unit) {
+        const monthlyExpenses = expense.unit.monthlyExpensesAmount != null ? Number(expense.unit.monthlyExpensesAmount) : 0
         balance[unitId].unitMonthlyExpenses = monthlyExpenses
       }
 
@@ -243,7 +240,7 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
       // Always get the latest monthly expenses from the units array
       const unitFromList = units.find(u => u.id === unitId)
       if (unitFromList) {
-        const monthlyExpenses = (unitFromList as any).monthlyExpensesAmount ? Number((unitFromList as any).monthlyExpensesAmount) : 0
+        const monthlyExpenses = unitFromList.monthlyExpensesAmount != null ? Number(unitFromList.monthlyExpensesAmount) : 0
         balance[unitId].unitMonthlyExpenses = monthlyExpenses
       }
       
@@ -359,7 +356,7 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-medium text-[#1B5E20]">{categoryLabels[expense.category]}</span>
                                 <span className="text-xs text-gray-500">•</span>
-                                <span className="text-xs text-gray-500">{format(new Date(expense.date), "dd/MM/yyyy")}</span>
+                                <span className="text-xs text-gray-500">{expense.date ? format(new Date(expense.date), "dd/MM/yyyy") : "-"}</span>
                               </div>
                               <p className="text-sm text-gray-700 mt-1">{expense.description}</p>
                               {expense.vendor && (
@@ -412,12 +409,12 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
                   <CardHeader className="pb-3 bg-[#F1F8F4] border-b border-[#d4e6dc]">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg font-semibold text-[#1B5E20]">{expense.unit.name}</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-[#1B5E20]">{expense.unit?.name ?? "-"}</CardTitle>
                         <CardDescription className="text-sm text-gray-600 mt-1">
                           {categoryLabels[expense.category]} • {expense.month}
                         </CardDescription>
                         <CardDescription className="text-xs text-gray-500 mt-1">
-                          {format(new Date(expense.date), "dd/MM/yyyy")}
+                          {expense.date ? format(new Date(expense.date), "dd/MM/yyyy") : "-"}
                         </CardDescription>
                       </div>
                       <div className="flex gap-1">
@@ -492,7 +489,7 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
           onOpenChange={setShowCreate}
           units={units}
           onSuccess={(expense) => {
-            setExpenses([expense as any, ...expenses])
+            setExpenses([toExpenseUI(expense), ...expenses])
             setShowCreate(false)
             router.refresh() // Refresh to update server data
           }}
@@ -521,31 +518,41 @@ function ExpenseDialog({
   units,
   onSuccess,
 }: {
-  expense?: (MonthlyExpense & { unit: Unit })
+  expense?: ExpenseUI
   open: boolean
   onOpenChange: (open: boolean) => void
-  units: (Unit & { rentalPeriods?: RentalPeriod[] })[]
-  onSuccess: (data: any) => void
+  units: UnitWithRentalPeriodsUI[]
+  onSuccess: (data: ExpenseUI) => void
 }) {
+  type ExpenseCategory = "OSSE" | "INMOB" | "TSU" | "OBRAS" | "OTROS"
   const [loading, setLoading] = useState(false)
   const { addToast } = useToast()
   
   const baseDate = expense?.date ? new Date(expense.date) : new Date()
-  // Calcular el mes automáticamente desde la fecha (formato YYYY-MM)
   const calculateMonthFromDate = (dateStr: string) => {
     if (!dateStr) return format(new Date(), "yyyy-MM")
     const date = new Date(dateStr)
     return format(date, "yyyy-MM")
   }
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    unitId: string
+    month: string
+    date: string
+    category: ExpenseCategory
+    description: string
+    amount: string
+    currency: "ARS" | "USD"
+    deductibleFlag: boolean
+    vendor: string
+  }>({
     unitId: expense?.unitId || units[0]?.id || "",
     month: expense?.month || calculateMonthFromDate(expense?.date ? format(new Date(expense.date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")),
     date: format(baseDate, "yyyy-MM-dd"),
-    category: expense?.category || "OTROS",
+    category: (expense?.category as ExpenseCategory) || "OTROS",
     description: expense?.description || "",
     amount: expense ? Number(expense.amount).toString() : "",
-    currency: expense?.currency || "ARS",
+    currency: (expense?.currency as "ARS" | "USD") || "ARS",
     deductibleFlag: expense?.deductibleFlag || false,
     vendor: expense?.vendor || "",
   })
@@ -568,10 +575,10 @@ function ExpenseDialog({
 
       if (expense) {
         const updated = await updateExpense(expense.id, dataToSubmit)
-        onSuccess(updated)
+        onSuccess(toExpenseUI(updated))
       } else {
         const created = await createExpense(dataToSubmit)
-        onSuccess(created)
+        onSuccess(toExpenseUI(created))
       }
       addToast({
         title: expense ? "Gasto actualizado" : "Gasto creado",
@@ -631,7 +638,7 @@ function ExpenseDialog({
               <Select
                 id="category"
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as ExpenseCategory })}
                 required
               >
                 <option value="OSSE">OSSE</option>

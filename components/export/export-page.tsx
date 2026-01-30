@@ -4,14 +4,14 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
-import { RentalPeriod, MonthlyExpense } from "@prisma/client"
 import { format } from "date-fns"
 import * as XLSX from "xlsx"
+import type { RentalPeriodUI, ExpenseUI, TaxDataUI } from "@/lib/ui-types"
 
 interface ExportPageProps {
-  taxData: any
-  rentalPeriods: (RentalPeriod & { unit: { name: string }; tenant: { name: string } | null })[]
-  expenses: (MonthlyExpense & { unit: { name: string } })[]
+  taxData: TaxDataUI
+  rentalPeriods: RentalPeriodUI[]
+  expenses: ExpenseUI[]
 }
 
 export function ExportPage({ taxData, rentalPeriods, expenses }: ExportPageProps) {
@@ -54,7 +54,7 @@ export function ExportPage({ taxData, rentalPeriods, expenses }: ExportPageProps
 
     const data = expenses.map((expense) => ({
       Mes: expense.month,
-      Unidad: expense.unit.name,
+      Unidad: expense.unit?.name ?? "-",
       Categoría: expense.category,
       Descripción: expense.description,
       Monto: Number(expense.amount).toFixed(2),
@@ -75,7 +75,7 @@ export function ExportPage({ taxData, rentalPeriods, expenses }: ExportPageProps
     setLoading(true)
 
     const data = rentalPeriods.map((period) => ({
-      Unidad: period.unit.name,
+      Unidad: period.unit?.name ?? "-",
       Inquilino: period.tenant?.name || "Sin inquilino",
       "Fecha Inicio": format(new Date(period.startDate), "dd/MM/yyyy"),
       "Fecha Fin": format(new Date(period.endDate), "dd/MM/yyyy"),

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { CreateUnitDialog } from "./create-unit-dialog"
 import { CreateRentalPeriodDialog } from "./create-rental-period-dialog"
 import { RentalPeriodDrawer } from "./rental-period-drawer"
-import type { RentalPeriodUI, UnitUI } from "./calendar-types"
+import type { RentalPeriodUI, UnitUI } from "@/lib/ui-types"
 
 interface MonthlyCalendarViewProps {
   units: UnitUI[]

@@ -353,17 +353,6 @@ export async function getExpenses(unitId?: string, month?: string) {
       } : null,
     }
     
-    // Verify no Decimal objects remain
-    if (convertedExpense.amount instanceof Decimal || 
-        convertedExpense.totalAmount instanceof Decimal ||
-        (convertedExpense.unit && (convertedExpense.unit.ivaRatePercent instanceof Decimal || 
-         convertedExpense.unit.igRatePercent instanceof Decimal ||
-         convertedExpense.unit.iibbRatePercent instanceof Decimal ||
-         convertedExpense.unit.monthlyExpensesAmount instanceof Decimal))) {
-      console.error('[getExpenses] ERROR: Decimal object found in converted expense:', convertedExpense)
-      throw new Error('Decimal object found after conversion - this should not happen')
-    }
-    
     return convertedExpense
   })
 }

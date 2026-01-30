@@ -162,7 +162,7 @@ export async function markPaymentReceived(data: { unitId: string; period: string
   } catch (error: any) {
     console.error("Error in markPaymentReceived:", error)
     if (error instanceof z.ZodError) {
-      throw new Error(`Datos inválidos: ${error.errors.map((e: any) => e.message).join(", ")}`)
+      throw new Error(`Datos inválidos: ${error.issues.map((e) => e.message).join(", ")}`)
     }
     throw error
   }

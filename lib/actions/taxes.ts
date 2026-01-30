@@ -214,7 +214,7 @@ export async function calculateTaxes(year: number, month?: number) {
   const iibbAmount = profile.iibbEnabled
     ? (totalIncome * Number(profile.iibbRatePercent)) / 100
     : 0
-  const igEstimate = profile.igEstimatePercent > 0
+  const igEstimate = Number(profile.igEstimatePercent) > 0
     ? (netResult * Number(profile.igEstimatePercent)) / 100
     : 0
 

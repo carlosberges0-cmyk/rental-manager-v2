@@ -1315,7 +1315,18 @@ function ExpenseDialog({
     return format(date, "yyyy-MM")
   }
   
-  const [formData, setFormData] = useState({
+  type ExpenseCategory = "OSSE" | "INMOB" | "TSU" | "OBRAS" | "OTROS"
+  const [formData, setFormData] = useState<{
+    unitId: string
+    month: string
+    date: string
+    category: ExpenseCategory
+    description: string
+    amount: string
+    currency: "ARS" | "USD"
+    deductibleFlag: boolean
+    vendor: string
+  }>({
     unitId: units[0]?.id || "",
     month: defaultMonth || format(new Date(), "yyyy-MM"),
     date: format(baseDate, "yyyy-MM-dd"),
@@ -1416,7 +1427,7 @@ function ExpenseDialog({
               <Select
                 id="category"
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value as ExpenseCategory })}
                 required
               >
                 <option value="OSSE">OSSE</option>
@@ -1431,7 +1442,7 @@ function ExpenseDialog({
               <Select
                 id="currency"
                 value={formData.currency}
-                onChange={(e) => setFormData({ ...formData, currency: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, currency: e.target.value as "ARS" | "USD" })}
                 required
               >
                 <option value="ARS">ARS</option>

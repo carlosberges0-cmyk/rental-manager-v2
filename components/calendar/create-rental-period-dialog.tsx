@@ -9,15 +9,17 @@ import { Select } from "@/components/ui/select"
 import { createRentalPeriod } from "@/lib/actions/rental-periods"
 import { getTenants } from "@/lib/actions/tenants"
 import { useToast } from "@/components/ui/toast"
-import { Unit, Tenant } from "@prisma/client"
+import { Tenant } from "@prisma/client"
 import { format } from "date-fns"
 import { Plus } from "lucide-react"
+import type { RentalPeriodUI, UnitUI } from "@/lib/ui-types"
+import { toRentalPeriodUI } from "@/lib/ui-mappers"
 
 interface CreateRentalPeriodDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  units: Unit[]
-  onSuccess: (period: any) => void
+  units: UnitUI[]
+  onSuccess: (period: RentalPeriodUI) => void
 }
 
 export function CreateRentalPeriodDialog({
@@ -69,7 +71,7 @@ export function CreateRentalPeriodDialog({
         tenantName: formData.tenantName || undefined,
       })
       addToast({ title: "Período creado", description: "El período de alquiler se ha creado correctamente" })
-      onSuccess(period)
+      onSuccess(toRentalPeriodUI(period))
       setFormData({
         unitId: units[0]?.id || "",
         tenantId: "",
