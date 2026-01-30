@@ -32,13 +32,9 @@ export default function SignInPage() {
       }
 
       if (result.error) {
-        if (result.error === "Configuration") {
-          setError(
-            "No se pudo enviar el email. En preview/desarrollo, revisa los logs del servidor (Vercel → Deployment → Logs) donde puede estar impreso el enlace [AUTH MAGIC LINK]."
-          )
-        } else {
-          setError(`No se pudo enviar el email de acceso (${result.error}).`)
-        }
+        setError(
+          "No se pudo enviar el email. Si usás onboarding@resend.dev, revisá los logs del servidor (Vercel → Deployment → Logs) donde se imprime el enlace [AUTH MAGIC LINK]."
+        )
         return
       }
 

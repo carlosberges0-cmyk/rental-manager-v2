@@ -49,20 +49,18 @@ export const authOptions = {
         const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD
         const useResendDev = from.endsWith("@resend.dev")
 
+        if (useResendDev) {
+          console.log("[AUTH MAGIC LINK]", url)
+          return
+        }
+
+        if (!apiKey) {
+          if (isProd) throw new Error("RESEND_API_KEY or SMTP_PASSWORD is not configured")
+          console.log("[AUTH MAGIC LINK]", url)
+          return
+        }
+
         try {
-          if (!isProd) {
-            console.log("[AUTH MAGIC LINK]", url)
-          }
-
-          if (!isProd && useResendDev) {
-            return
-          }
-
-          if (!apiKey) {
-            if (isProd) throw new Error("RESEND_API_KEY or SMTP_PASSWORD is not configured")
-            return
-          }
-
           const resend = new Resend(apiKey)
           const { error } = await resend.emails.send({
             from,
@@ -76,11 +74,11 @@ export const authOptions = {
             if (isProd) {
               throw new Error(typeof error === "object" && error !== null && "message" in error ? String((error as { message: string }).message) : String(error))
             }
-            console.warn("[AUTH] Resend rejected (preview):", typeof error === "object" && error !== null && "message" in error ? (error as { message: string }).message : error)
+            console.log("[AUTH MAGIC LINK]", url)
           }
         } catch (err) {
           if (isProd) throw err
-          console.warn("[AUTH] Email send failed (preview fallback):", err instanceof Error ? err.message : String(err))
+          console.log("[AUTH MAGIC LINK]", url)
         }
       },
     }),
