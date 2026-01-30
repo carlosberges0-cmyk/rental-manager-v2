@@ -42,37 +42,47 @@ function extractSenderEmail(from: string): string {
 function customSendVerificationRequest(params: {
   identifier: string
   url: string
-  provider: { from?: string }
+  provider?: { from?: string }
 }) {
-  const { identifier, url, provider } = params
-  const fromRaw = provider.from ?? process.env.EMAIL_FROM ?? "onboarding@resend.dev"
-  const senderEmail = extractSenderEmail(fromRaw).toLowerCase()
-  const senderIsResendDev = senderEmail.endsWith("@resend.dev")
-  const owner = process.env.AUTH_OWNER_EMAIL?.toLowerCase().trim()
-  const recipient = identifier.toLowerCase().trim()
+  const url = params?.url ?? ""
+  const identifier = params?.identifier ?? ""
 
-  console.log("[AUTH EMAIL CONFIG]", {
-    senderEmail,
-    senderIsResendDev,
-    recipient,
-    ownerPresent: !!owner,
-  })
-
-  const safeLogAndReturn = () => {
-    console.log("[AUTH MAGIC LINK]", url)
+  const safeLogAndReturn = (): Promise<void> => {
+    try {
+      console.log("[AUTH MAGIC LINK]", url)
+    } catch {
+      /* ignore */
+    }
     return Promise.resolve()
   }
 
-  if (senderIsResendDev) {
-    return safeLogAndReturn()
-  }
-
-  const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD
-  if (!apiKey) {
-    return safeLogAndReturn()
-  }
-
   try {
+    const fromRaw = (process.env.EMAIL_FROM ?? params?.provider?.from ?? "onboarding@resend.dev") as string
+    const senderEmail = extractSenderEmail(fromRaw).toLowerCase()
+    const senderIsResendDev = senderEmail.endsWith("@resend.dev")
+    const owner = process.env.AUTH_OWNER_EMAIL?.toLowerCase().trim()
+    const recipient = String(identifier).toLowerCase().trim()
+
+    try {
+      console.log("[AUTH EMAIL CONFIG]", {
+        senderEmail,
+        senderIsResendDev,
+        recipient,
+        ownerPresent: !!owner,
+      })
+    } catch {
+      /* ignore */
+    }
+
+    if (senderIsResendDev) {
+      return safeLogAndReturn()
+    }
+
+    const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD
+    if (!apiKey) {
+      return safeLogAndReturn()
+    }
+
     const resend = new Resend(apiKey)
     return resend.emails
       .send({
@@ -84,18 +94,29 @@ function customSendVerificationRequest(params: {
       })
       .then(({ error }) => {
         if (error) {
-          console.error("[AUTH EMAIL SEND FAILED]", error)
+          try {
+            console.error("[AUTH EMAIL SEND FAILED]", error)
+          } catch {
+            /* ignore */
+          }
           return safeLogAndReturn()
         }
       })
       .catch((err) => {
-        console.error("[AUTH EMAIL SEND FAILED]", err)
+        try {
+          console.error("[AUTH EMAIL SEND FAILED]", err)
+        } catch {
+          /* ignore */
+        }
         return safeLogAndReturn()
       }) as Promise<void>
   } catch (err) {
-    console.error("[AUTH EMAIL SEND FAILED]", err)
-    safeLogAndReturn()
-    return Promise.resolve()
+    try {
+      console.error("[AUTH EMAIL SEND FAILED]", err)
+    } catch {
+      /* ignore */
+    }
+    return safeLogAndReturn()
   }
 }
 
