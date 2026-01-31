@@ -1,5 +1,5 @@
 import NextAuth, { type NextAuthConfig } from "next-auth"
-import ResendProvider from "next-auth/providers/resend"
+import EmailProvider from "next-auth/providers/email"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { Resend } from "resend"
 import { prisma } from "@/lib/prisma"
@@ -127,9 +127,8 @@ export const authOptions = {
   trustHost: true,
   debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
   providers: [
-    ResendProvider({
-      id: "email",
-      apiKey: process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD ?? "",
+    EmailProvider({
+      server: { host: "localhost", port: 25 },
       from: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
       sendVerificationRequest: customSendVerificationRequest,
     }),

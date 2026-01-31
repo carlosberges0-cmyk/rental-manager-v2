@@ -34,7 +34,7 @@ export default function SignInPage() {
       if (result.error) {
         const errorDetail = result.error
         setError(
-          `Error (${errorDetail}): Revisá Vercel → Deployment → Logs. Deberías ver [AUTH EMAIL CONFIG] y [AUTH MAGIC LINK] con el enlace. Si no aparecen, puede ser problema de base de datos (VerificationToken) o variables de entorno.`
+          `Error: ${errorDetail}. Abrí /api/auth/diagnose para ver el diagnóstico (DB, env vars).`
         )
         return
       }
@@ -74,13 +74,36 @@ export default function SignInPage() {
               />
             </div>
             {error ? (
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                {error}
+              <div className="space-y-3">
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                  {error}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  <a
+                    href="/api/auth/diagnose"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-primary"
+                  >
+                    Abrir diagnóstico
+                  </a>{" "}
+                  para ver el estado de la DB y variables de entorno.
+                </p>
               </div>
             ) : null}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Enviando..." : "Enviar enlace de acceso"}
             </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              <a
+                href="/api/auth/diagnose"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:no-underline"
+              >
+                Abrir diagnóstico (DB y env)
+              </a>
+            </p>
           </form>
         </CardContent>
       </Card>
