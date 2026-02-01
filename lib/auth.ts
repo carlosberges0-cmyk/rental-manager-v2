@@ -5,10 +5,8 @@ import { Resend } from "resend"
 import { prisma } from "@/lib/prisma"
 
 /**
- * Auth uses Resend (not Nodemailer/SMTP) for magic-link emails.
- * RESEND_API_KEY and EMAIL_FROM must be set in env.
- * When using onboarding@resend.dev, we log the magic link instead of sending
- * (Resend restricts that sender to account owner only).
+ * Auth uses Resend API for magic-link emails. No SMTP/Nodemailer.
+ * Required env: RESEND_API_KEY, EMAIL_FROM (verified domain, e.g. noreply@yourdomain.com)
  */
 
 /** Base URL for callbacks. NEXTAUTH_URL > VERCEL_URL > localhost. */
@@ -42,11 +40,6 @@ const htmlTemplate = (url: string) => `
 const textTemplate = (url: string) =>
   `Para iniciar sesión, haz clic en el siguiente enlace:\n\n${url}\n\nEste enlace expirará en 24 horas.`
 
-function extractSenderEmail(from: string): string {
-  const match = from.match(/<([^>]+)>/)
-  return match ? match[1].trim() : from.trim()
-}
-
 function customSendVerificationRequest(params: {
   identifier: string
   url: string
@@ -54,78 +47,36 @@ function customSendVerificationRequest(params: {
 }) {
   const url = params?.url ?? ""
   const identifier = params?.identifier ?? ""
+  const from = (process.env.EMAIL_FROM ?? params?.provider?.from ?? "").trim()
+  const apiKey = process.env.RESEND_API_KEY
 
-  const safeLogAndReturn = (): Promise<void> => {
-    try {
-      console.log("[AUTH MAGIC LINK]", url)
-    } catch {
-      /* ignore */
-    }
+  if (!apiKey) {
+    console.error("[AUTH EMAIL] RESEND_API_KEY is not set")
     return Promise.resolve()
   }
 
-  try {
-    const fromRaw = (process.env.EMAIL_FROM ?? params?.provider?.from ?? "onboarding@resend.dev") as string
-    const senderEmail = extractSenderEmail(fromRaw).toLowerCase()
-    const senderIsResendDev = senderEmail.endsWith("@resend.dev")
-    const owner = process.env.AUTH_OWNER_EMAIL?.toLowerCase().trim()
-    const recipient = String(identifier).toLowerCase().trim()
-
-    try {
-      console.log("[AUTH EMAIL CONFIG]", {
-        senderEmail,
-        senderIsResendDev,
-        recipient,
-        ownerPresent: !!owner,
-      })
-    } catch {
-      /* ignore */
-    }
-
-    if (senderIsResendDev) {
-      return safeLogAndReturn()
-    }
-
-    const apiKey = process.env.RESEND_API_KEY
-    if (!apiKey) {
-      return safeLogAndReturn()
-    }
-
-    const resend = new Resend(apiKey)
-    return resend.emails
-      .send({
-        from: fromRaw,
-        to: identifier,
-        subject,
-        html: htmlTemplate(url),
-        text: textTemplate(url),
-      })
-      .then(({ error }) => {
-        if (error) {
-          try {
-            console.error("[AUTH EMAIL SEND FAILED]", error)
-          } catch {
-            /* ignore */
-          }
-          return safeLogAndReturn()
-        }
-      })
-      .catch((err) => {
-        try {
-          console.error("[AUTH EMAIL SEND FAILED]", err)
-        } catch {
-          /* ignore */
-        }
-        return safeLogAndReturn()
-      }) as Promise<void>
-  } catch (err) {
-    try {
-      console.error("[AUTH EMAIL SEND FAILED]", err)
-    } catch {
-      /* ignore */
-    }
-    return safeLogAndReturn()
+  if (!from) {
+    console.error("[AUTH EMAIL] EMAIL_FROM is not set")
+    return Promise.resolve()
   }
+
+  const resend = new Resend(apiKey)
+  return resend.emails
+    .send({
+      from,
+      to: identifier,
+      subject,
+      html: htmlTemplate(url),
+      text: textTemplate(url),
+    })
+    .then(({ error }) => {
+      if (error) {
+        console.error("[AUTH EMAIL SEND FAILED]", error)
+      }
+    })
+    .catch((err) => {
+      console.error("[AUTH EMAIL SEND FAILED]", err)
+    }) as Promise<void>
 }
 
 export const authOptions = {
@@ -137,7 +88,7 @@ export const authOptions = {
     ResendProvider({
       id: "email",
       apiKey: process.env.RESEND_API_KEY ?? "",
-      from: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
+      from: process.env.EMAIL_FROM ?? "",
       sendVerificationRequest: customSendVerificationRequest,
     }),
   ],
