@@ -13,8 +13,8 @@ export default async function ExportPageRoute() {
   const expenses = await getExpenses()
 
   const taxDataForUI = toTaxDataUI(taxData)
-  const rentalPeriodsForUI = rentalPeriods.map((rp) => toRentalPeriodUI(rp))
-  const expensesForUI = expenses.map((e) => toExpenseUI(e))
+  const rentalPeriodsForUI = rentalPeriods.map((rp: unknown) => toRentalPeriodUI(rp))
+  const expensesForUI = expenses.map((e: unknown) => toExpenseUI(e))
 
   return (
     <ExportPage

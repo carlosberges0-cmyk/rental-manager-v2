@@ -242,19 +242,19 @@ export async function getPaymentsStatusByPeriod(period: string) {
 
   // Crear map de unidades con pagos recibidos (por statement o por payment)
   const statementMap = new Map(statements.map((s: any) => [s.unitId, true]))
-  const paymentMap = new Map(payments.map(p => [p.unitId, true]))
+  const paymentMap = new Map(payments.map((p: { unitId: string }) => [p.unitId, true]))
   
   // Una unidad tiene pago recibido si tiene statement O payment
   const statusMap = new Map<string, boolean>()
-  units.forEach(unit => {
+  units.forEach((unit: { id: string }) => {
     statusMap.set(unit.id, statementMap.has(unit.id) || paymentMap.has(unit.id))
   })
 
-  return units.map(unit => ({
+  return units.map((unit: { id: string; name: string; propertyGroup?: unknown }) => ({
     unitId: unit.id,
     unitName: unit.name,
-    propertyGroup: (unit as any).propertyGroup || null,
-    received: statusMap.get(unit.id) || false,
+    propertyGroup: unit.propertyGroup ?? null,
+    received: statusMap.get(unit.id) ?? false,
   }))
 }
 
@@ -433,7 +433,7 @@ export async function getPayments() {
     return value
   }
 
-  return payments.map(p => decimalToNumber(p))
+  return payments.map((p: unknown) => decimalToNumber(p))
 }
 
 export async function getPayment(id: string) {

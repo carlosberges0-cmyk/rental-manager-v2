@@ -73,13 +73,21 @@ export async function getPropertyGroups() {
   }
 
   // Convert all Decimal fields to numbers for Client Components
-  return groups.map(group => ({
+  type GroupInput = {
+    id: string
+    userId: string
+    name: string
+    createdAt?: Date | string | null
+    updatedAt?: Date | string | null
+    units?: Array<Record<string, unknown>>
+  }
+  return groups.map((group: GroupInput) => ({
     id: group.id,
     userId: group.userId,
     name: group.name,
     createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : (group.createdAt ? String(group.createdAt) : null),
     updatedAt: group.updatedAt instanceof Date ? group.updatedAt.toISOString() : (group.updatedAt ? String(group.updatedAt) : null),
-    units: (group as any).units?.map((unit: any) => ({
+    units: group.units?.map((unit: Record<string, unknown>) => ({
       id: unit.id,
       userId: unit.userId,
       name: unit.name,

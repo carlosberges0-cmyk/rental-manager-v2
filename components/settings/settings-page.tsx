@@ -7,10 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updateTaxProfile } from "@/lib/actions/taxes"
 import { useToast } from "@/components/ui/toast"
-import { TaxProfile } from "@prisma/client"
+import type { TaxProfileUI } from "@/lib/ui-types"
 
 interface SettingsPageProps {
-  initialTaxProfile: TaxProfile
+  initialTaxProfile: TaxProfileUI
 }
 
 export function SettingsPage({ initialTaxProfile }: SettingsPageProps) {
@@ -31,7 +31,15 @@ export function SettingsPage({ initialTaxProfile }: SettingsPageProps) {
 
     try {
       const updated = await updateTaxProfile(formData)
-      setTaxProfile(updated)
+      setTaxProfile({
+        id: updated.id,
+        userId: updated.userId,
+        ivaEnabled: updated.ivaEnabled,
+        ivaRatePercent: Number(updated.ivaRatePercent),
+        iibbEnabled: updated.iibbEnabled,
+        iibbRatePercent: Number(updated.iibbRatePercent),
+        igEstimatePercent: Number(updated.igEstimatePercent),
+      })
       addToast({ title: "Configuración guardada", description: "Los cambios se han guardado correctamente" })
     } catch (error: any) {
       addToast({

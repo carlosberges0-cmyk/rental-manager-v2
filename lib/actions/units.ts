@@ -522,7 +522,36 @@ export async function getUnitsWithRentalPeriods() {
   })
 
   // Convert Decimal to number for client components - build new objects explicitly
-  return units.map(unit => ({
+  type UnitWithPeriods = {
+    id: string
+    userId: string
+    name: string
+    address: string | null
+    type: string
+    notes: string | null
+    archived: boolean
+    ivaRatePercent?: unknown
+    igRatePercent?: unknown
+    iibbRatePercent?: unknown
+    createdAt: Date
+    updatedAt: Date
+    rentalPeriods: Array<{
+      id: string
+      unitId: string
+      tenantId: string | null
+      startDate: Date
+      endDate: Date
+      priceAmount?: unknown
+      currency: string
+      billingFrequency: string
+      status: string
+      notes: string | null
+      exemptFromIVA: boolean
+      createdAt: Date
+      updatedAt: Date
+    }>
+  }
+  return units.map((unit: UnitWithPeriods) => ({
     id: unit.id,
     userId: unit.userId,
     name: unit.name,
@@ -535,7 +564,7 @@ export async function getUnitsWithRentalPeriods() {
     iibbRatePercent: decimalToNumber(unit.iibbRatePercent),
     createdAt: unit.createdAt,
     updatedAt: unit.updatedAt,
-    rentalPeriods: unit.rentalPeriods.map(period => ({
+    rentalPeriods: unit.rentalPeriods.map((period: UnitWithPeriods["rentalPeriods"][number]) => ({
       id: period.id,
       unitId: period.unitId,
       tenantId: period.tenantId,

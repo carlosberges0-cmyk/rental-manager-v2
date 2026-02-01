@@ -306,7 +306,44 @@ export async function getExpenses(unitId?: string, month?: string) {
   }
 
   // Convert Decimal to number - build new objects explicitly
-  return expenses.map(expense => {
+  type ExpenseInput = {
+    id: string
+    unitId: string
+    month: string
+    date?: Date | string | null
+    category: string
+    description: string
+    amount?: unknown
+    totalAmount?: unknown
+    currency: string
+    deductibleFlag: boolean
+    vendor?: string | null
+    ivaRatePercent?: unknown
+    ivaAmount?: unknown
+    igRatePercent?: unknown
+    igAmount?: unknown
+    iibbRatePercent?: unknown
+    iibbAmount?: unknown
+    createdAt?: Date | string | null
+    updatedAt?: Date | string | null
+    unit?: {
+      id: string
+      userId: string
+      name: string
+      address?: string | null
+      type: string
+      notes?: string | null
+      archived: boolean
+      aplicaIvaAlquiler?: boolean
+      ivaRatePercent?: unknown
+      igRatePercent?: unknown
+      iibbRatePercent?: unknown
+      monthlyExpensesAmount?: unknown
+      createdAt?: Date | string | null
+      updatedAt?: Date | string | null
+    } | null
+  }
+  return expenses.map((expense: ExpenseInput) => {
     // Convert all Decimal fields to numbers - ensure NO Decimal objects remain
     const amountNum = decimalToNumber(expense.amount)
     const totalAmountNum = decimalToNumber(expense.totalAmount)
@@ -343,11 +380,11 @@ export async function getExpenses(unitId?: string, month?: string) {
         type: expense.unit.type,
         notes: expense.unit.notes || null,
         archived: expense.unit.archived,
-        aplicaIvaAlquiler: (expense.unit as any).aplicaIvaAlquiler || false,
-        ivaRatePercent: decimalToNumber((expense.unit as any).ivaRatePercent),
-        igRatePercent: decimalToNumber((expense.unit as any).igRatePercent),
-        iibbRatePercent: decimalToNumber((expense.unit as any).iibbRatePercent),
-        monthlyExpensesAmount: decimalToNumber((expense.unit as any).monthlyExpensesAmount),
+        aplicaIvaAlquiler: expense.unit.aplicaIvaAlquiler ?? false,
+        ivaRatePercent: decimalToNumber(expense.unit.ivaRatePercent),
+        igRatePercent: decimalToNumber(expense.unit.igRatePercent),
+        iibbRatePercent: decimalToNumber(expense.unit.iibbRatePercent),
+        monthlyExpensesAmount: decimalToNumber(expense.unit.monthlyExpensesAmount),
         createdAt: expense.unit.createdAt instanceof Date ? expense.unit.createdAt.toISOString() : (expense.unit.createdAt ? String(expense.unit.createdAt) : null),
         updatedAt: expense.unit.updatedAt instanceof Date ? expense.unit.updatedAt.toISOString() : (expense.unit.updatedAt ? String(expense.unit.updatedAt) : null),
       } : null,

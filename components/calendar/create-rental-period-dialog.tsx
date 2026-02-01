@@ -9,7 +9,6 @@ import { Select } from "@/components/ui/select"
 import { createRentalPeriod } from "@/lib/actions/rental-periods"
 import { getTenants } from "@/lib/actions/tenants"
 import { useToast } from "@/components/ui/toast"
-import { Tenant } from "@prisma/client"
 import { format } from "date-fns"
 import { Plus } from "lucide-react"
 import type { RentalPeriodUI, UnitUI } from "@/lib/ui-types"
@@ -29,7 +28,7 @@ export function CreateRentalPeriodDialog({
   onSuccess,
 }: CreateRentalPeriodDialogProps) {
   const [loading, setLoading] = useState(false)
-  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [tenants, setTenants] = useState<{ id: string; name: string }[]>([])
   const { addToast } = useToast()
   const [formData, setFormData] = useState({
     unitId: units[0]?.id || "",

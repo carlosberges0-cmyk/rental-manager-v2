@@ -331,7 +331,24 @@ export async function getRentalPeriods(unitId?: string, startDate?: Date, endDat
     }
 
     // Convert Decimal to number for client components - build new objects explicitly
-    return periods.map(period => ({
+    type PeriodInput = {
+      id: string
+      unitId: string
+      tenantId: string | null
+      startDate: Date
+      endDate: Date
+      priceAmount?: unknown
+      currency: string
+      billingFrequency: string
+      status: string
+      notes: string | null
+      exemptFromIVA: boolean
+      createdAt: Date
+      updatedAt: Date
+      unit?: { id: string; userId: string; name: string; address: string | null; type: string; notes: string | null; archived: boolean; createdAt: Date; updatedAt: Date; ivaRatePercent?: unknown; igRatePercent?: unknown; iibbRatePercent?: unknown; monthlyExpensesAmount?: unknown } | null
+      tenant?: { id: string; name: string; documentId: string | null; email: string | null; phone: string | null; createdAt: Date; updatedAt: Date } | null
+    }
+    return periods.map((period: PeriodInput) => ({
       id: period.id,
       unitId: period.unitId,
       tenantId: period.tenantId,
@@ -354,10 +371,10 @@ export async function getRentalPeriods(unitId?: string, startDate?: Date, endDat
         type: period.unit.type,
         notes: period.unit.notes,
         archived: period.unit.archived,
-        ivaRatePercent: decimalToNumber((period.unit as any).ivaRatePercent),
-        igRatePercent: decimalToNumber((period.unit as any).igRatePercent),
-        iibbRatePercent: decimalToNumber((period.unit as any).iibbRatePercent),
-        monthlyExpensesAmount: decimalToNumber((period.unit as any).monthlyExpensesAmount),
+        ivaRatePercent: decimalToNumber(period.unit.ivaRatePercent),
+        igRatePercent: decimalToNumber(period.unit.igRatePercent),
+        iibbRatePercent: decimalToNumber(period.unit.iibbRatePercent),
+        monthlyExpensesAmount: decimalToNumber(period.unit.monthlyExpensesAmount),
         createdAt: period.unit.createdAt,
         updatedAt: period.unit.updatedAt,
       } : null,

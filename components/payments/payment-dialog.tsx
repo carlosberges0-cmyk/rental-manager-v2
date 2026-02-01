@@ -65,7 +65,7 @@ export function PaymentDialog({
       setRentalPeriods(externalRentalPeriods)
     } else if (formData.unitId && !externalRentalPeriods) {
       getRentalPeriods(formData.unitId)
-        .then((rps) => rps.map((rp) => toRentalPeriodUI(rp)))
+        .then((rps) => rps.map((rp: unknown) => toRentalPeriodUI(rp)))
         .then(setRentalPeriods)
         .catch((error) => {
           console.error("Error loading rental periods:", error)

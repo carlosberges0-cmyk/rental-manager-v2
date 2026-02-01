@@ -86,3 +86,14 @@ export type UnitUIMinimal = {
 export type UnitWithRentalPeriodsUI = UnitUI & {
   rentalPeriods: RentalPeriodUI[]
 }
+
+/** Tax profile for settings (Decimal -> number) */
+export type TaxProfileUI = {
+  id: string
+  userId: string
+  ivaEnabled: boolean
+  ivaRatePercent: number
+  iibbEnabled: boolean
+  iibbRatePercent: number
+  igEstimatePercent: number
+}

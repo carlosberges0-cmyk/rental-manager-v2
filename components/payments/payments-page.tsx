@@ -8,12 +8,12 @@ import { Label } from "@/components/ui/label"
 import { Check, X, DollarSign } from "lucide-react"
 import { markPaymentReceived, getPaymentsStatusByPeriod } from "@/lib/actions/payments"
 import { useToast } from "@/components/ui/toast"
-import { Unit } from "@prisma/client"
+import type { UnitUI } from "@/lib/ui-types"
 import { format, parse } from "date-fns"
 import { useRouter } from "next/navigation"
 
 interface PaymentsPageProps {
-  units: Unit[]
+  units: UnitUI[]
 }
 
 export function PaymentsPage({ units }: PaymentsPageProps) {
@@ -31,7 +31,7 @@ export function PaymentsPage({ units }: PaymentsPageProps) {
     try {
       const statuses = await getPaymentsStatusByPeriod(selectedPeriod)
       const statusMap: Record<string, boolean> = {}
-      statuses.forEach((status) => {
+      statuses.forEach((status: { unitId: string; received: boolean }) => {
         statusMap[status.unitId] = status.received
       })
       setPaymentStatuses(statusMap)

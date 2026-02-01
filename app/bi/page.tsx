@@ -1,4 +1,5 @@
 import { BIPage } from "@/components/bi/bi-page"
+import type { UnitUI } from "@/lib/ui-types"
 import { calculateTaxes } from "@/lib/actions/taxes"
 import { getRentalPeriods } from "@/lib/actions/rental-periods"
 import { getExpenses } from "@/lib/actions/expenses"
@@ -15,9 +16,9 @@ export default async function BIPageRoute() {
   const units = await getUnits()
 
   const taxDataForUI = toTaxDataUI(taxData)
-  const rentalPeriodsForUI = rentalPeriods.map((rp) => toRentalPeriodUI(rp))
-  const expensesForUI = expenses.map((e) => toExpenseUI(e))
-  const unitsForUI = units.map((u) => toUnitUI(u)).filter((u): u is NonNullable<typeof u> => u !== null)
+  const rentalPeriodsForUI = rentalPeriods.map((rp: unknown) => toRentalPeriodUI(rp))
+  const expensesForUI = expenses.map((e: unknown) => toExpenseUI(e))
+  const unitsForUI = units.map((u: unknown) => toUnitUI(u)).filter((u: UnitUI | null): u is UnitUI => u !== null)
 
   return (
     <BIPage

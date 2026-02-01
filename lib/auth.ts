@@ -86,7 +86,7 @@ function customSendVerificationRequest(params: {
       return safeLogAndReturn()
     }
 
-    const apiKey = process.env.RESEND_API_KEY ?? process.env.SMTP_PASSWORD
+    const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
       return safeLogAndReturn()
     }
