@@ -1,8 +1,15 @@
 import NextAuth, { type NextAuthConfig } from "next-auth"
-import EmailProvider from "next-auth/providers/email"
+import ResendProvider from "next-auth/providers/resend"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { Resend } from "resend"
 import { prisma } from "@/lib/prisma"
+
+/**
+ * Auth uses Resend (not Nodemailer/SMTP) for magic-link emails.
+ * RESEND_API_KEY and EMAIL_FROM must be set in env.
+ * When using onboarding@resend.dev, we log the magic link instead of sending
+ * (Resend restricts that sender to account owner only).
+ */
 
 /** Base URL for callbacks. NEXTAUTH_URL > VERCEL_URL > localhost. */
 export function getBaseUrl(): string {
@@ -127,8 +134,9 @@ export const authOptions = {
   trustHost: true,
   debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
   providers: [
-    EmailProvider({
-      server: { host: "localhost", port: 25 },
+    ResendProvider({
+      id: "email",
+      apiKey: process.env.RESEND_API_KEY ?? "",
       from: process.env.EMAIL_FROM ?? "onboarding@resend.dev",
       sendVerificationRequest: customSendVerificationRequest,
     }),
