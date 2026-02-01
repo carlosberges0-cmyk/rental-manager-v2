@@ -1,12 +1,13 @@
 import NextAuth, { type NextAuthConfig } from "next-auth"
+import GoogleProvider from "next-auth/providers/google"
 import ResendProvider from "next-auth/providers/resend"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { Resend } from "resend"
 import { prisma } from "@/lib/prisma"
 
 /**
- * Auth uses Resend API for magic-link emails. No SMTP/Nodemailer.
- * Required env: RESEND_API_KEY, EMAIL_FROM (verified domain, e.g. noreply@yourdomain.com)
+ * Auth uses Resend API for magic-link emails. No SMTP.
+ * Env: RESEND_API_KEY (or AUTH_RESEND_KEY), EMAIL_FROM
  */
 
 /** Base URL for callbacks. NEXTAUTH_URL > VERCEL_URL > localhost. */
@@ -48,10 +49,10 @@ function customSendVerificationRequest(params: {
   const url = params?.url ?? ""
   const identifier = params?.identifier ?? ""
   const from = (process.env.EMAIL_FROM ?? params?.provider?.from ?? "").trim()
-  const apiKey = process.env.RESEND_API_KEY
+  const apiKey = process.env.RESEND_API_KEY ?? process.env.AUTH_RESEND_KEY
 
   if (!apiKey) {
-    console.error("[AUTH EMAIL] RESEND_API_KEY is not set")
+    console.error("[AUTH EMAIL] RESEND_API_KEY and AUTH_RESEND_KEY are not set")
     return Promise.resolve()
   }
 
@@ -69,13 +70,15 @@ function customSendVerificationRequest(params: {
       html: htmlTemplate(url),
       text: textTemplate(url),
     })
-    .then(({ error }) => {
+    .then(({ data, error }) => {
       if (error) {
-        console.error("[AUTH EMAIL SEND FAILED]", error)
+        console.error("[AUTH EMAIL SEND FAILED]", JSON.stringify(error, null, 2))
+      } else {
+        console.log("[AUTH EMAIL SEND OK]", { to: identifier, resendId: data?.id })
       }
     })
     .catch((err) => {
-      console.error("[AUTH EMAIL SEND FAILED]", err)
+      console.error("[AUTH EMAIL SEND FAILED]", err instanceof Error ? err.message : String(err), err)
     }) as Promise<void>
 }
 
@@ -85,9 +88,13 @@ export const authOptions = {
   trustHost: true,
   debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    }),
     ResendProvider({
       id: "email",
-      apiKey: process.env.RESEND_API_KEY ?? "",
+      apiKey: process.env.RESEND_API_KEY ?? process.env.AUTH_RESEND_KEY ?? "",
       from: process.env.EMAIL_FROM ?? "",
       sendVerificationRequest: customSendVerificationRequest,
     }),
