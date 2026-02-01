@@ -1,17 +1,13 @@
 "use client"
 
-import { signIn } from "next-auth/react"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
 export default function SignInPage() {
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleGoogleSignIn = () => {
-    setIsLoading(true)
-    signIn("google", { callbackUrl: "/calendar" })
-  }
+  const callbackUrl = "/"
+  const signInUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -23,14 +19,12 @@ export default function SignInPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button
-            type="button"
-            className="w-full"
-            disabled={isLoading}
-            onClick={handleGoogleSignIn}
+          <Link
+            href={signInUrl}
+            className={cn(buttonVariants(), "w-full cursor-pointer bg-[#1B5E20] hover:bg-[#2E7D32]")}
           >
-            {isLoading ? "Redirigiendo..." : "Continuar con Google"}
-          </Button>
+            Continuar con Google
+          </Link>
         </CardContent>
       </Card>
     </div>
