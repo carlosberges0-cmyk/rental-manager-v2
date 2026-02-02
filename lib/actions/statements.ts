@@ -353,6 +353,31 @@ export async function getStatement(id: string) {
 }
 
 /**
+ * Obtiene todas las liquidaciones de un año (para BI/impuestos)
+ */
+export async function getStatementsByYear(year: number) {
+  if (!(prisma as any).monthlyStatement) return []
+  const userId = await getDefaultUserId()
+  try {
+    const statements = await (prisma as any).monthlyStatement.findMany({
+      where: {
+        period: { startsWith: `${year}-` },
+        unit: { userId },
+      },
+      include: {
+        unit: { include: { propertyGroup: true } },
+        tenant: true,
+        items: true,
+      },
+    })
+    return statements.map(convertStatementToClient)
+  } catch (error: any) {
+    if (error.message?.includes('monthlyStatement') || error.code === 'P2001') return []
+    throw error
+  }
+}
+
+/**
  * Obtiene todas las liquidaciones de un período
  */
 export async function getStatements(period: string) {

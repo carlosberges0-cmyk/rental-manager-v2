@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { Decimal } from "@prisma/client/runtime/library"
 import { getDefaultUserId } from "./auth-helper"
+import { getStatementsByYear } from "./statements"
 
 const taxProfileSchema = z.object({
   ivaEnabled: z.boolean(),
@@ -56,33 +57,8 @@ export async function updateTaxProfile(data: z.infer<typeof taxProfileSchema>) {
 export async function calculateTaxes(year: number, month?: number) {
   const profile = await getTaxProfile()
   
-  // Get rental periods for the period
-  const startDate = month 
-    ? new Date(year, month - 1, 1)
-    : new Date(year, 0, 1)
-  const endDate = month
-    ? new Date(year, month, 0, 23, 59, 59)
-    : new Date(year, 11, 31, 23, 59, 59)
-
-  const rentalPeriods = await prisma.rentalPeriod.findMany({
-    where: {
-      status: { not: "CANCELLED" },
-      OR: [
-        {
-          AND: [
-            { startDate: { lte: endDate } },
-            { endDate: { gte: startDate } },
-          ],
-        },
-      ],
-    },
-    include: {
-      unit: true,
-    },
-  })
-
-  // Get expenses for the period
   const monthFilter = month ? `${year}-${String(month).padStart(2, "0")}` : undefined
+
   const expenses = await prisma.monthlyExpense.findMany({
     where: {
       month: monthFilter ? { startsWith: `${year}-` } : { startsWith: `${year}-` },
@@ -97,56 +73,17 @@ export async function calculateTaxes(year: number, month?: number) {
     where: { archived: false },
   })
 
-  // Calculate income (normalize to monthly amounts)
+  // Ingresos = alquiler desde liquidaciones (statements), no desde rental periods
   let totalIncome = 0
   const incomeByMonth: Record<string, number> = {}
-
-  for (const period of rentalPeriods) {
-    const periodStart = new Date(Math.max(period.startDate.getTime(), startDate.getTime()))
-    const periodEnd = new Date(Math.min(period.endDate.getTime(), endDate.getTime()))
-    
-    if (periodStart > periodEnd) continue
-
-    const daysInPeriod = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    const totalDays = Math.ceil((period.endDate.getTime() - period.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-    
-    // Convert priceAmount to number safely (handling Decimal)
-    const priceAmount = period.priceAmount instanceof Decimal 
-      ? period.priceAmount.toNumber() 
-      : typeof period.priceAmount === 'number' 
-        ? period.priceAmount 
-        : Number(period.priceAmount) || 0
-    
-    let monthlyAmount = 0
-    if (period.billingFrequency === "MONTHLY") {
-      monthlyAmount = priceAmount
-    } else if (period.billingFrequency === "WEEKLY") {
-      monthlyAmount = priceAmount * 4.33
-    } else if (period.billingFrequency === "DAILY") {
-      monthlyAmount = priceAmount * 30
-    } else if (period.billingFrequency === "ONE_TIME") {
-      monthlyAmount = priceAmount / (totalDays / 30)
-    }
-
-    // Distribute across months
-    const currentDate = new Date(periodStart)
-    while (currentDate <= periodEnd) {
-      const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`
-      if (!monthFilter || monthKey === monthFilter) {
-        const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-        const daysInThisMonth = Math.min(
-          daysInMonth - currentDate.getDate() + 1,
-          Math.ceil((periodEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        )
-        const proportion = daysInThisMonth / daysInPeriod
-        const amount = monthlyAmount * proportion
-        
-        incomeByMonth[monthKey] = (incomeByMonth[monthKey] || 0) + amount
-        totalIncome += amount
-      }
-      currentDate.setMonth(currentDate.getMonth() + 1)
-      currentDate.setDate(1)
-    }
+  const statements = await getStatementsByYear(year)
+  for (const stmt of statements) {
+    const monthKey = stmt.period
+    if (!monthKey?.startsWith(`${year}-`)) continue
+    if (monthFilter && monthKey !== monthFilter) continue
+    const alq = stmt.alquiler != null ? Number(stmt.alquiler) : 0
+    incomeByMonth[monthKey] = (incomeByMonth[monthKey] || 0) + alq
+    totalIncome += alq
   }
 
   // Calculate expenses

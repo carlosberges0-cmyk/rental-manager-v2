@@ -8,14 +8,17 @@ import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
+type StatementClient = { period: string; unitId: string; alquiler: number; currency?: string }
+
 interface BIPageProps {
   taxData: TaxDataUI
+  statementsByYear?: Record<number, StatementClient[]>
   rentalPeriods: RentalPeriodUI[]
   expenses: ExpenseUI[]
   units: UnitUI[]
 }
 
-export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units }: BIPageProps) {
+export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalPeriods, expenses, units }: BIPageProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("ARS")
 
@@ -23,85 +26,26 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
   const currentYear = new Date().getFullYear()
   const taxData = initialTaxData || { income: 0, expenses: 0, ivaAmount: 0, iibbAmount: 0, igEstimate: 0, deductibleExpenses: 0, incomeByMonth: {}, expensesByMonth: {} }
   
+  // Ingresos = alquiler desde liquidaciones (statements)
+  const incomeByMonthFromStatements = useMemo(() => {
+    const stmts = statementsByYear[selectedYear] || []
+    const byMonth: Record<string, number> = {}
+    stmts.forEach((s: StatementClient) => {
+      if (!s.period?.startsWith(`${selectedYear}-`)) return
+      if (s.currency && s.currency !== selectedCurrency) return
+      const alq = s.alquiler != null ? Number(s.alquiler) : 0
+      byMonth[s.period] = (byMonth[s.period] || 0) + alq
+    })
+    return byMonth
+  }, [statementsByYear, selectedYear, selectedCurrency])
+
   // Calculate YTD KPIs for selected year
   const ytdKPIs = useMemo(() => {
-    const yearStart = new Date(selectedYear, 0, 1)
-    const yearEnd = new Date(selectedYear, 11, 31)
-    
-    // Calculate YTD income from rental periods
     let ytdIncome = 0
-    let ytdTaxes = 0
-    
-    rentalPeriods
-      .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
-      .forEach(period => {
-        const periodStart = new Date(period.startDate)
-        const periodEnd = new Date(period.endDate)
-        
-        if (periodStart > yearEnd || periodEnd < yearStart) return
-        
-        const actualStart = new Date(Math.max(periodStart.getTime(), yearStart.getTime()))
-        const actualEnd = new Date(Math.min(periodEnd.getTime(), yearEnd.getTime()))
-        const totalDays = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        
-        const priceAmount = typeof period.priceAmount === "number" ? period.priceAmount : Number(period.priceAmount) || 0
-        
-        let monthlyAmount = 0
-        if (period.billingFrequency === "MONTHLY") {
-          monthlyAmount = priceAmount
-        } else if (period.billingFrequency === "WEEKLY") {
-          monthlyAmount = priceAmount * 4.33
-        } else if (period.billingFrequency === "DAILY") {
-          monthlyAmount = priceAmount * 30
-        } else if (period.billingFrequency === "ONE_TIME") {
-          const periodTotalDays = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          monthlyAmount = periodTotalDays > 0 ? priceAmount / (periodTotalDays / 30) : 0
-        }
-        
-        // Calculate income for the year
-        let currentDate = new Date(actualStart)
-        while (currentDate <= actualEnd) {
-          const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`
-          if (monthKey.startsWith(`${selectedYear}-`)) {
-            const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-            const daysInThisMonth = Math.min(
-              daysInMonth - currentDate.getDate() + 1,
-              Math.ceil((actualEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-            )
-            const proportion = totalDays > 0 ? daysInThisMonth / totalDays : 0
-            ytdIncome += monthlyAmount * proportion
-          }
-          currentDate.setMonth(currentDate.getMonth() + 1)
-          currentDate.setDate(1)
-        }
-        
-        // Calculate taxes using unit's tax rates
-        const unit = period.unit
-        if (!period.exemptFromIVA && unit) {
-          const ivaRate = unit.ivaRatePercent != null ? Number(unit.ivaRatePercent) / 100 : 0
-          const igRate = unit.igRatePercent != null ? Number(unit.igRatePercent) / 100 : 0
-          const iibbRate = unit.iibbRatePercent != null ? Number(unit.iibbRatePercent) / 100 : 0
-          
-          const monthlyTax = monthlyAmount * (ivaRate + igRate + iibbRate)
-          
-          // Distribute tax across months in the year
-          let taxCurrentDate = new Date(actualStart)
-          while (taxCurrentDate <= actualEnd) {
-            const monthKey = `${taxCurrentDate.getFullYear()}-${String(taxCurrentDate.getMonth() + 1).padStart(2, "0")}`
-            if (monthKey.startsWith(`${selectedYear}-`)) {
-              const daysInMonth = new Date(taxCurrentDate.getFullYear(), taxCurrentDate.getMonth() + 1, 0).getDate()
-              const daysInThisMonth = Math.min(
-                daysInMonth - taxCurrentDate.getDate() + 1,
-                Math.ceil((actualEnd.getTime() - taxCurrentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-              )
-              const proportion = totalDays > 0 ? daysInThisMonth / totalDays : 0
-              ytdTaxes += monthlyTax * proportion
-            }
-            taxCurrentDate.setMonth(taxCurrentDate.getMonth() + 1)
-            taxCurrentDate.setDate(1)
-          }
-        }
-      })
+    Object.values(incomeByMonthFromStatements).forEach((v) => { ytdIncome += v })
+    const ytdTaxes = selectedYear === new Date().getFullYear() && initialTaxData
+      ? (Number(initialTaxData.ivaAmount) || 0) + (Number(initialTaxData.iibbAmount) || 0) + (Number(initialTaxData.igEstimate) || 0)
+      : 0
     
     // Calculate YTD expenses breakdown for selected year and currency
     const yearExpenses = expenses.filter(e => e.currency === selectedCurrency && e.month.startsWith(`${selectedYear}-`))
@@ -145,7 +89,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
       ytdMargin,
       profitability,
     }
-  }, [rentalPeriods, expenses, units, selectedYear, selectedCurrency])
+  }, [incomeByMonthFromStatements, initialTaxData, expenses, units, selectedYear, selectedCurrency])
   
   const { ytdIncome, ytdGastos, ytdExpensas, ytdMargin, profitability } = ytdKPIs
 
@@ -169,12 +113,15 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
 
   const monthlyData = months.map((month) => {
     const monthKey = format(month, "yyyy-MM")
-    const income = (taxData.incomeByMonth && taxData.incomeByMonth[monthKey]) || 0
+    const income = incomeByMonthFromStatements[monthKey] ?? (taxData.incomeByMonth?.[monthKey] ?? 0)
     const expenseData = (taxData.expensesByMonth && taxData.expensesByMonth[monthKey]) || { total: 0, deductible: 0 }
+    const expenseFromList = expenses
+      .filter((e) => e.currency === selectedCurrency && e.month === monthKey)
+      .reduce((sum, e) => sum + (typeof e.amount === "number" ? e.amount : Number(e.amount) || 0), 0)
     return {
       month: format(month, "MMM"),
       Ingresos: income,
-      Gastos: expenseData.total || 0,
+      Gastos: expenseData.total || expenseFromList || 0,
     }
   })
 
@@ -234,86 +181,30 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
       }
     })
 
-    // Calculate income from rental periods
+    // Ingresos = alquiler desde liquidaciones (statements)
+    const stmts = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => !s.currency || s.currency === selectedCurrency
+    )
+    stmts.forEach((s: StatementClient) => {
+      const unitId = s.unitId
+      if (!metrics[unitId]) return
+      const alq = s.alquiler != null ? Number(s.alquiler) : 0
+      metrics[unitId].income = Number(metrics[unitId].income) + alq
+    })
+
+    // Occupancy days from rental periods (para tasa de ocupación)
     rentalPeriods
       .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
       .forEach(period => {
         const periodStart = new Date(period.startDate)
         const periodEnd = new Date(period.endDate)
-        
-        // Check if period overlaps with selected year
         if (periodStart > yearEnd || periodEnd < yearStart) return
-
         const unitId = period.unitId
         if (!metrics[unitId]) return
-
-        // Calculate occupied days
         const overlapStart = new Date(Math.max(periodStart.getTime(), yearStart.getTime()))
         const overlapEnd = new Date(Math.min(periodEnd.getTime(), yearEnd.getTime()))
         const days = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
         metrics[unitId].occupancyDays += days
-
-        // Calculate income for the year
-        const actualStart = new Date(Math.max(periodStart.getTime(), yearStart.getTime()))
-        const actualEnd = new Date(Math.min(periodEnd.getTime(), yearEnd.getTime()))
-        const totalDays = Math.ceil((actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-
-        const priceAmount = typeof period.priceAmount === "number" ? period.priceAmount : Number(period.priceAmount) || 0
-        
-        let monthlyAmount = 0
-        if (period.billingFrequency === "MONTHLY") {
-          monthlyAmount = priceAmount
-        } else if (period.billingFrequency === "WEEKLY") {
-          monthlyAmount = priceAmount * 4.33
-        } else if (period.billingFrequency === "DAILY") {
-          monthlyAmount = priceAmount * 30
-        } else if (period.billingFrequency === "ONE_TIME") {
-          const periodTotalDays = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          monthlyAmount = periodTotalDays > 0 ? priceAmount / (periodTotalDays / 30) : 0
-        }
-
-        // Distribute income across months in the year
-        let currentDate = new Date(actualStart)
-        while (currentDate <= actualEnd) {
-          const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`
-          if (monthKey.startsWith(`${selectedYear}-`)) {
-            const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
-            const daysInThisMonth = Math.min(
-              daysInMonth - currentDate.getDate() + 1,
-              Math.ceil((actualEnd.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-            )
-            const proportion = totalDays > 0 ? daysInThisMonth / totalDays : 0
-            metrics[unitId].income = Number(metrics[unitId].income) + Number(monthlyAmount * proportion)
-          }
-          currentDate.setMonth(currentDate.getMonth() + 1)
-          currentDate.setDate(1)
-        }
-
-        // Calculate taxes on income using unit's tax rates
-        const unit = period.unit
-        if (!period.exemptFromIVA && unit) {
-          const ivaRate = unit.ivaRatePercent != null ? Number(unit.ivaRatePercent) / 100 : 0
-          const igRate = unit.igRatePercent != null ? Number(unit.igRatePercent) / 100 : 0
-          const iibbRate = unit.iibbRatePercent != null ? Number(unit.iibbRatePercent) / 100 : 0
-
-          // Apply taxes to the monthly income
-          const monthlyTax = monthlyAmount * (ivaRate + igRate + iibbRate)
-          let taxCurrentDate = new Date(actualStart)
-          while (taxCurrentDate <= actualEnd) {
-            const monthKey = `${taxCurrentDate.getFullYear()}-${String(taxCurrentDate.getMonth() + 1).padStart(2, "0")}`
-            if (monthKey.startsWith(`${selectedYear}-`)) {
-              const daysInMonth = new Date(taxCurrentDate.getFullYear(), taxCurrentDate.getMonth() + 1, 0).getDate()
-              const daysInThisMonth = Math.min(
-                daysInMonth - taxCurrentDate.getDate() + 1,
-                Math.ceil((actualEnd.getTime() - taxCurrentDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-              )
-              const proportion = totalDays > 0 ? daysInThisMonth / totalDays : 0
-              metrics[unitId].taxes = Number(metrics[unitId].taxes) + Number(monthlyTax * proportion)
-            }
-            taxCurrentDate.setMonth(taxCurrentDate.getMonth() + 1)
-            taxCurrentDate.setDate(1)
-          }
-        }
       })
 
     // Calculate expenses (manual expenses and expensas category)
@@ -425,7 +316,7 @@ export function BIPage({ taxData: initialTaxData, rentalPeriods, expenses, units
       // Si tienen el mismo nombre, ordenar por ID para consistencia
       return a.unit.id.localeCompare(b.unit.id)
     })
-  }, [units, rentalPeriods, expenses, selectedYear, selectedCurrency])
+  }, [units, statementsByYear, rentalPeriods, expenses, selectedYear, selectedCurrency])
 
   // Prepare comparison chart data
   const comparisonChartData = unitMetrics.map(metric => ({

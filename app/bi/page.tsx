@@ -1,6 +1,7 @@
 import { BIPage } from "@/components/bi/bi-page"
 import type { UnitUI } from "@/lib/ui-types"
 import { calculateTaxes } from "@/lib/actions/taxes"
+import { getStatementsByYear } from "@/lib/actions/statements"
 import { getRentalPeriods } from "@/lib/actions/rental-periods"
 import { getExpenses } from "@/lib/actions/expenses"
 import { getUnits } from "@/lib/actions/units"
@@ -10,10 +11,20 @@ export const dynamic = "force-dynamic"
 
 export default async function BIPageRoute() {
   const currentYear = new Date().getFullYear()
-  const taxData = await calculateTaxes(currentYear)
-  const rentalPeriods = await getRentalPeriods()
-  const expenses = await getExpenses()
-  const units = await getUnits()
+  const [taxData, statementsCurrent, statementsPrev1, statementsPrev2, rentalPeriods, expenses, units] = await Promise.all([
+    calculateTaxes(currentYear),
+    getStatementsByYear(currentYear),
+    getStatementsByYear(currentYear - 1),
+    getStatementsByYear(currentYear - 2),
+    getRentalPeriods(),
+    getExpenses(),
+    getUnits(),
+  ])
+  const statementsByYear: Record<number, typeof statementsCurrent> = {
+    [currentYear]: statementsCurrent,
+    [currentYear - 1]: statementsPrev1,
+    [currentYear - 2]: statementsPrev2,
+  }
 
   const taxDataForUI = toTaxDataUI(taxData)
   const rentalPeriodsForUI = rentalPeriods.map((rp: unknown) => toRentalPeriodUI(rp))
@@ -23,6 +34,7 @@ export default async function BIPageRoute() {
   return (
     <BIPage
       taxData={taxDataForUI}
+      statementsByYear={statementsByYear}
       rentalPeriods={rentalPeriodsForUI}
       expenses={expensesForUI}
       units={unitsForUI}
