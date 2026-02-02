@@ -197,9 +197,9 @@ export function StatementsPage({
           r.gastos = (r.osse || 0) + (r.tsu || 0) + (r.inmob || 0) + (r.obras || 0) + (r.otrosTotal || 0)
         })
 
-        // 5. Total anual, neto, neteado (TOTAL_MES = Alquiler+OSSE+Inmob+TSU+IVA, NETO = TOTAL_MES - Expensas, NETEADO = NETO - Gastos)
+        // 5. Total anual, neto, neteado (TOTAL_MES = Alquiler+OSSE+Inmob+IVA, NETO = TOTAL_MES - Expensas, NETEADO = NETO - Gastos)
         resultados.forEach((r) => {
-          r.totalMes = (r.alquiler || 0) + (r.osse || 0) + (r.inmob || 0) + (r.tsu || 0) + (r.ivaAlquiler || 0)
+          r.totalMes = (r.alquiler || 0) + (r.osse || 0) + (r.inmob || 0) + (r.ivaAlquiler || 0)
           r.neto = r.totalMes - (r.expensas || 0)
           r.neteado = r.neto - r.gastos
         })

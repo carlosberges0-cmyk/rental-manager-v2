@@ -37,7 +37,7 @@ export interface ComputedTotals {
  * Calcula los totales de una liquidación mensual (para TODAS las filas)
  *
  * Orden:
- * 1. TOTAL_DEL_MES = Alquiler + OSSE + INMOB + TSU + IVA
+ * 1. TOTAL_DEL_MES = Alquiler + OSSE + INMOB + IVA (TSU no va al total del mes)
  * 2. NETO = Total del mes - Expensas (input)
  * 3. NETEADO = NETO - OSSE - TSU - INMOB - OBRAS - Otros
  */
@@ -56,8 +56,8 @@ export function computeStatement(input: StatementInput): ComputedTotals {
     ivaAlquiler = alquiler * Number(input.ivaRate)
   }
 
-  // 1. TOTAL_DEL_MES = Alquiler + OSSE + INMOB + TSU + IVA
-  let totalMes = alquiler + osse + inmob + tsu + ivaAlquiler
+  // 1. TOTAL_DEL_MES = Alquiler + OSSE + INMOB + IVA (TSU no se suma aquí)
+  let totalMes = alquiler + osse + inmob + ivaAlquiler
 
   // Agregar items CHARGE
   if (input.items) {
