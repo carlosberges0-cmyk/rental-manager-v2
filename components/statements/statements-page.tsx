@@ -192,15 +192,15 @@ export function StatementsPage({
           if ((r.otrosTotal || 0) === 0) r.otrosTotal = otrosFromStmt.get(u) || 0
         })
 
-        // 4. Gastos = suma de todos los meses (OSSE+Inmob+TSU+Obras+Otros); prioridad gastos, sino statements
+        // 4. Gastos para neteado = OSSE + TSU + OBRAS + otros (Inmob NO se deduce del neto)
         resultados.forEach((r) => {
-          r.gastos = r.osse + r.inmob + r.tsu + r.obras + r.otrosTotal
+          r.gastos = (r.osse || 0) + (r.tsu || 0) + (r.obras || 0) + (r.otrosTotal || 0)
         })
 
-        // 5. Total anual, neto, neteado
+        // 5. Total anual, neto, neteado (TOTAL_MES = Alquiler+OSSE+Inmob+TSU+IVA, NETO = TOTAL_MES - Expensas, NETEADO = NETO - Gastos)
         resultados.forEach((r) => {
-          r.totalMes = r.alquiler + r.ivaAlquiler - (r.osse || 0) - (r.inmob || 0) - (r.tsu || 0) - (r.obras || 0) - (r.otrosTotal || 0)
-          r.neto = r.totalMes - r.expensas
+          r.totalMes = (r.alquiler || 0) + (r.osse || 0) + (r.inmob || 0) + (r.tsu || 0) + (r.ivaAlquiler || 0)
+          r.neto = r.totalMes - (r.expensas || 0)
           r.neteado = r.neto - r.gastos
         })
 
@@ -293,7 +293,6 @@ export function StatementsPage({
       const obras = obrasFromExpenses > 0 ? obrasFromExpenses : ((stmt.obras && Number(stmt.obras) > 0) ? Number(stmt.obras) : undefined)
       const otrosTotal = otrosFromExpenses > 0 ? otrosFromExpenses : ((stmt.otrosTotal && Number(stmt.otrosTotal) > 0) ? Number(stmt.otrosTotal) : undefined)
       
-      // Recalcular totales para asegurar que estén actualizados
       const computed = computeStatement({
         alquiler: stmt.alquiler || 0,
         osse,
@@ -301,6 +300,7 @@ export function StatementsPage({
         tsu,
         obras,
         otrosTotal,
+        iva: stmt.ivaAlquiler != null ? Number(stmt.ivaAlquiler) : undefined,
         expensas: finalExpensas > 0 ? finalExpensas : undefined,
         aplicaIvaAlquiler,
         ivaRate,
@@ -363,6 +363,7 @@ export function StatementsPage({
           tsu: tsu && tsu > 0 ? tsu : undefined,
           obras: obras && obras > 0 ? obras : undefined,
           otrosTotal: otrosTotal && otrosTotal > 0 ? otrosTotal : undefined,
+          iva: undefined,
           expensas: expensas || undefined,
           aplicaIvaAlquiler,
           ivaRate,
@@ -476,6 +477,7 @@ export function StatementsPage({
         tsu: toNumberOrUndefined(rowData.tsu),
         obras: obrasToSave,
         otrosTotal: otrosToSave,
+        ivaAlquiler: toNumberOrUndefined(rowData.ivaAlquiler),
         expensas: finalExpensas > 0 ? finalExpensas : undefined,
         notes: rowData.notes || undefined,
       }

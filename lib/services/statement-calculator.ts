@@ -12,9 +12,10 @@ export interface StatementInput {
   tsu?: number
   obras?: number
   otrosTotal?: number
+  iva?: number // IVA como monto editable (no calculado)
   expensas?: number
-  aplicaIvaAlquiler: boolean
-  ivaRate: number // Ej: 0.21 para 21%
+  aplicaIvaAlquiler?: boolean // Deprecated: IVA ahora es input directo
+  ivaRate?: number // Deprecated: usado solo si iva no se proporciona (fallback)
   // Items adicionales (opcional)
   items?: Array<{
     type: "CHARGE" | "DEDUCTION" | "INFO"
@@ -34,16 +35,16 @@ export interface ComputedTotals {
 
 /**
  * Calcula los totales de una liquidación mensual
- * 
- * Reglas:
- * - TOTAL_MES = ALQUILER + IVA_ALQUILER - OSSE - INMOB - TSU - OBRAS - OTROS
- * - IVA_ALQUILER = ALQUILER * iva_rate (si aplica_iva_alquiler = true)
+ *
+ * Reglas (según usuario):
+ * - TOTAL_MES = ALQUILER + OSSE + INMOB + TSU + IVA
  * - NETO = TOTAL_MES - EXPENSAS
- * - GASTOS = INMOB + OSSE + TSU + OBRAS (+ OTROS si isDeduction = true)
+ * - GASTOS = OSSE + TSU + OBRAS + OTROS (para deducir del neto)
  * - NETEADO = NETO - GASTOS
+ *
+ * IVA es un input editable (no calculado desde alquiler).
  */
 export function computeStatement(input: StatementInput): ComputedTotals {
-  // Usar números JavaScript normales (sin Decimal para compatibilidad cliente/servidor)
   const alquiler = Number(input.alquiler || 0)
   const osse = Number(input.osse || 0)
   const inmob = Number(input.inmob || 0)
@@ -51,28 +52,24 @@ export function computeStatement(input: StatementInput): ComputedTotals {
   const obras = Number(input.obras || 0)
   const otrosTotal = Number(input.otrosTotal || 0)
   const expensas = Number(input.expensas || 0)
-  const ivaRate = Number(input.ivaRate || 0)
 
-  // 1. Calcular IVA sobre alquiler
-  let ivaAlquiler = 0
-  if (input.aplicaIvaAlquiler && ivaRate > 0) {
-    ivaAlquiler = alquiler * ivaRate
+  // IVA como monto editable; si no se pasa, fallback a alquiler * ivaRate (legacy)
+  let ivaAlquiler = Number(input.iva ?? 0)
+  if (ivaAlquiler === 0 && input.aplicaIvaAlquiler && (input.ivaRate ?? 0) > 0) {
+    ivaAlquiler = alquiler * Number(input.ivaRate)
   }
 
-  // 2. Calcular TOTAL_MES
-  // TOTAL_MES = ALQUILER + IVA_ALQUILER - OSSE - INMOB - TSU - OBRAS - OTROS
-  let totalMes = alquiler + ivaAlquiler - osse - inmob - tsu - obras - otrosTotal
+  // 1. TOTAL_MES = ALQUILER + OSSE + INMOB + TSU + IVA
+  let totalMes = alquiler + osse + inmob + tsu + ivaAlquiler
 
-  // Agregar items adicionales de tipo CHARGE (se suman)
+  // Agregar items CHARGE
   if (input.items) {
     input.items.forEach(item => {
-      if (item.type === "CHARGE") {
-        totalMes += Number(item.amount || 0)
-      }
+      if (item.type === "CHARGE") totalMes += Number(item.amount || 0)
     })
   }
 
-  // Restar items adicionales de tipo DEDUCTION del totalMes también
+  // Restar items DEDUCTION del totalMes
   if (input.items) {
     input.items.forEach(item => {
       if (item.type === "DEDUCTION" || item.isDeduction) {
@@ -81,16 +78,11 @@ export function computeStatement(input: StatementInput): ComputedTotals {
     })
   }
 
-  // 3. Calcular NETO
-  // NETO = TOTAL_MES - EXPENSAS
+  // 2. NETO = TOTAL_MES - EXPENSAS
   const neto = totalMes - expensas
 
-  // 4. Calcular GASTOS
-  // GASTOS = INMOB + OSSE + TSU + OBRAS
-  let gastos = inmob + osse + tsu + obras
-
-  // Agregar OTROS si está marcado como deducción (por ahora no, solo items)
-  // Agregar items de tipo DEDUCTION o con isDeduction = true
+  // 3. GASTOS = OSSE + TSU + OBRAS + OTROS (para neteado; Inmob no se deduce)
+  let gastos = osse + tsu + obras + otrosTotal
   if (input.items) {
     input.items.forEach(item => {
       if (item.type === "DEDUCTION" || item.isDeduction) {
@@ -99,8 +91,7 @@ export function computeStatement(input: StatementInput): ComputedTotals {
     })
   }
 
-  // 5. Calcular NETEADO
-  // NETEADO = NETO - GASTOS
+  // 4. NETEADO = NETO - GASTOS
   const neteado = neto - gastos
 
   // Redondear a 2 decimales
@@ -284,10 +275,12 @@ export function validateStatementInput(
     if (input.inmob && input.inmob < 0) errors.push("Inmob no puede ser negativo")
     if (input.tsu && input.tsu < 0) errors.push("TSU no puede ser negativo")
     if (input.obras && input.obras < 0) errors.push("Obras no puede ser negativo")
+    if (input.iva != null && input.iva < 0) errors.push("IVA no puede ser negativo")
     if (input.expensas && input.expensas < 0) errors.push("Expensas no puede ser negativo")
   }
 
-  if (input.ivaRate < 0 || input.ivaRate > 1) {
+  const rate = input.ivaRate ?? 0
+  if (rate < 0 || rate > 1) {
     errors.push("IVA rate debe estar entre 0 y 1 (ej: 0.21 para 21%)")
   }
 

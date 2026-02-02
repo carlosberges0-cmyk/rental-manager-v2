@@ -17,6 +17,7 @@ const statementSchema = z.object({
   tsu: z.number().or(z.string()).optional(),
   obras: z.number().or(z.string()).optional(),
   otrosTotal: z.number().or(z.string()).optional(),
+  ivaAlquiler: z.number().or(z.string()).optional(),
   expensas: z.number().or(z.string()).optional(),
   notes: z.string().optional(),
 })
@@ -136,6 +137,12 @@ export async function upsertStatement(
       ? parseFloat(data.expensas)
       : data.expensas
     : undefined
+  const ivaAlquiler =
+    data.ivaAlquiler !== undefined && data.ivaAlquiler !== null
+      ? typeof data.ivaAlquiler === "string"
+        ? parseFloat(data.ivaAlquiler)
+        : Number(data.ivaAlquiler)
+      : undefined
 
   // Validar inputs
   const validation = validateStatementInput(
@@ -163,7 +170,7 @@ export async function upsertStatement(
     throw new Error(`Errores de validación: ${validation.errors.join(", ")}`)
   }
 
-  // Calcular totales
+  // Calcular totales (IVA como input editable si se proporciona)
   const computed = computeStatement({
     alquiler: alquilerFinal,
     osse,
@@ -171,6 +178,7 @@ export async function upsertStatement(
     tsu,
     obras,
     otrosTotal,
+    iva: ivaAlquiler !== undefined && ivaAlquiler !== null && !isNaN(ivaAlquiler) ? ivaAlquiler : undefined,
     expensas,
     aplicaIvaAlquiler,
     ivaRate,

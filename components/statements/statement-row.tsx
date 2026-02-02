@@ -45,16 +45,24 @@ export function StatementRow({
     tsu: row.tsu || null,
     obras: row.obras || null,
     otrosTotal: row.otrosTotal || null,
+    ivaAlquiler: row.ivaAlquiler ?? row.iva ?? null,
     expensas: row.expensas || null,
   })
   const [alquilerInput, setAlquilerInput] = useState<string>(() =>
     row.alquiler != null && row.alquiler !== "" ? String(row.alquiler) : ""
+  )
+  const [ivaInput, setIvaInput] = useState<string>(() =>
+    row.ivaAlquiler != null && row.ivaAlquiler !== "" ? String(row.ivaAlquiler) : ""
   )
 
   useEffect(() => {
     const v = row.alquiler != null && row.alquiler !== "" ? String(row.alquiler) : ""
     setAlquilerInput(v)
   }, [row.unitId, row.period, row.alquiler])
+  useEffect(() => {
+    const v = row.ivaAlquiler != null && row.ivaAlquiler !== "" ? String(row.ivaAlquiler) : ""
+    setIvaInput(v)
+  }, [row.unitId, row.period, row.ivaAlquiler])
 
   useEffect(() => {
     if (isEditing) {
@@ -65,17 +73,16 @@ export function StatementRow({
         tsu: row.tsu || null,
         obras: row.obras || null,
         otrosTotal: row.otrosTotal || null,
+        ivaAlquiler: row.ivaAlquiler ?? row.iva ?? null,
         expensas: row.expensas || null,
       })
     }
-  }, [isEditing, row.unitId, row.period, row.alquiler, row.osse, row.inmob, row.tsu, row.obras, row.otrosTotal, row.expensas])
+  }, [isEditing, row.unitId, row.period, row.alquiler, row.osse, row.inmob, row.tsu, row.obras, row.otrosTotal, row.ivaAlquiler, row.iva, row.expensas])
 
-  // Obtener configuración de la unidad
   const unit = units.find(u => u.id === row.unitId)
   const aplicaIvaAlquiler = unit?.aplicaIvaAlquiler ?? false
   const ivaRate = unit?.ivaRatePercent ? unit.ivaRatePercent / 100 : 0.21
 
-  // Calcular totales en tiempo real
   const computed = useMemo(() => {
     return computeStatement({
       alquiler: formData.alquiler || 0,
@@ -84,6 +91,7 @@ export function StatementRow({
       tsu: formData.tsu || undefined,
       obras: formData.obras || undefined,
       otrosTotal: formData.otrosTotal || undefined,
+      iva: formData.ivaAlquiler ?? undefined,
       expensas: formData.expensas || undefined,
       aplicaIvaAlquiler,
       ivaRate,
@@ -106,6 +114,7 @@ export function StatementRow({
       tsu: row.tsu || null,
       obras: row.obras || null,
       otrosTotal: row.otrosTotal || null,
+      ivaAlquiler: row.ivaAlquiler ?? row.iva ?? null,
       expensas: row.expensas || null,
     })
     onCancel()
@@ -182,8 +191,14 @@ export function StatementRow({
             className="w-24 text-right"
           />
         </td>
-        <td className="p-3 text-right text-gray-700 font-medium">
-          {computed.ivaAlquiler.toLocaleString()}
+        <td className="p-3">
+          <Input
+            type="number"
+            step="0.01"
+            value={formData.ivaAlquiler ?? ""}
+            onChange={(e) => setFormData({ ...formData, ivaAlquiler: e.target.value ? parseFloat(e.target.value) : null })}
+            className="w-24 text-right"
+          />
         </td>
         <td className="p-3 text-right text-gray-900 font-semibold">
           {computed.totalMes.toLocaleString()}
@@ -294,7 +309,34 @@ export function StatementRow({
           "-"
         )}
       </td>
-      <td className="p-3 text-right text-gray-700">{row.ivaAlquiler?.toLocaleString() || "0"}</td>
+      <td className="p-3">
+        <Input
+          type="number"
+          step="0.01"
+          min={0}
+          value={ivaInput}
+          onChange={(e) => setIvaInput(e.target.value)}
+          onBlur={() => {
+            const n = ivaInput === "" ? 0 : parseFloat(ivaInput)
+            if (!Number.isNaN(n)) {
+              const newComputed = computeStatement({
+                alquiler: row.alquiler || 0,
+                osse: row.osse || undefined,
+                inmob: row.inmob || undefined,
+                tsu: row.tsu || undefined,
+                obras: row.obras || undefined,
+                otrosTotal: row.otrosTotal || undefined,
+                iva: n,
+                expensas: row.expensas || undefined,
+                aplicaIvaAlquiler,
+                ivaRate,
+              })
+              onSave({ ...row, ...newComputed, ivaAlquiler: n })
+            }
+          }}
+          className="w-24 text-right h-9"
+        />
+      </td>
       <td className="p-3 text-right text-gray-900 font-semibold">{row.totalMes?.toLocaleString() || "0"}</td>
       <td className="p-3 text-right text-gray-700">{row.expensas?.toLocaleString() || "-"}</td>
       <td className="p-3 text-right text-gray-700 font-medium">{row.neto?.toLocaleString() || "0"}</td>
