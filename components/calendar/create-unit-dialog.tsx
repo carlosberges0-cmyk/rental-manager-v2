@@ -12,19 +12,26 @@ import { Plus } from "lucide-react"
 import type { UnitUI } from "@/lib/ui-types"
 import { toUnitUI } from "@/lib/ui-mappers"
 
+interface PropertyGroupOption {
+  id: string
+  name: string
+}
+
 interface CreateUnitDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: (unit: UnitUI) => void
+  propertyGroups?: PropertyGroupOption[]
 }
 
-export function CreateUnitDialog({ open, onOpenChange, onSuccess }: CreateUnitDialogProps) {
+export function CreateUnitDialog({ open, onOpenChange, onSuccess, propertyGroups = [] }: CreateUnitDialogProps) {
   const [loading, setLoading] = useState(false)
   const { addToast } = useToast()
   const [formData, setFormData] = useState({
     name: "",
     address: "",
     type: "DEPTO" as const,
+    propertyGroupId: "" as string,
     notes: "",
     ivaRatePercent: "",
     igRatePercent: "",
@@ -37,7 +44,11 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess }: CreateUnitDi
     setLoading(true)
 
     try {
-      const unit = await createUnit(formData)
+      const dataToSubmit = {
+        ...formData,
+        propertyGroupId: formData.propertyGroupId || undefined,
+      }
+      const unit = await createUnit(dataToSubmit)
       addToast({ title: "Unidad creada", description: "La unidad se ha creado correctamente" })
       const unitUI = toUnitUI(unit)
       if (unitUI) onSuccess(unitUI)
@@ -45,6 +56,7 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess }: CreateUnitDi
         name: "", 
         address: "", 
         type: "DEPTO", 
+        propertyGroupId: "",
         notes: "",
         ivaRatePercent: "",
         igRatePercent: "",
@@ -102,6 +114,21 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess }: CreateUnitDi
               <option value="OTRO">Otro</option>
             </Select>
           </div>
+          {propertyGroups.length > 0 && (
+            <div>
+              <Label htmlFor="propertyGroupId">Grupo de propiedades</Label>
+              <Select
+                id="propertyGroupId"
+                value={formData.propertyGroupId}
+                onChange={(e) => setFormData({ ...formData, propertyGroupId: e.target.value })}
+              >
+                <option value="">Sin grupo</option>
+                {propertyGroups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </Select>
+            </div>
+          )}
           <div>
             <Label htmlFor="notes">Notas</Label>
             <Input

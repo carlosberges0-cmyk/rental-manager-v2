@@ -12,11 +12,12 @@ import type { RentalPeriodUI, UnitUI } from "@/lib/ui-types"
 interface MonthlyCalendarViewProps {
   units: UnitUI[]
   initialRentalPeriods: RentalPeriodUI[]
+  propertyGroups?: { id: string; name: string }[]
 }
 
 const MONTH_WIDTH = 150 // pixels per month (reduced to fit 12 months)
 
-export function MonthlyCalendarView({ units: initialUnits, initialRentalPeriods }: MonthlyCalendarViewProps) {
+export function MonthlyCalendarView({ units: initialUnits, initialRentalPeriods, propertyGroups = [] }: MonthlyCalendarViewProps) {
   const [units, setUnits] = useState(initialUnits)
   const [rentalPeriods, setRentalPeriods] = useState(initialRentalPeriods)
   const [selectedYear, setSelectedYear] = useState(getYear(new Date()))
@@ -266,6 +267,7 @@ export function MonthlyCalendarView({ units: initialUnits, initialRentalPeriods 
             setUnits([...units, newUnit])
             setShowCreateUnit(false)
           }}
+          propertyGroups={propertyGroups}
         />
       )}
 

@@ -200,6 +200,7 @@ export function UnitsList({ initialUnits, initialPropertyGroups = [] }: UnitsLis
             setUnits([...units, unit])
             setShowCreate(false)
           }}
+          propertyGroups={(propertyGroups as { id: string; name: string }[]) || []}
         />
       )}
 

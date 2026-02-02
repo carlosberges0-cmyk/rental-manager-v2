@@ -111,7 +111,6 @@ export function StatementRow({
 
   const groupName = row.unit?.propertyGroup?.name || "Sin Grupo"
   const owner = row.unit?.owner || "-"
-  const tenantName = row.tenant?.name || "-"
   const unitName = row.unit?.name || "-"
 
   // Filtrar gastos de esta unidad
@@ -126,7 +125,6 @@ export function StatementRow({
           <div className="font-medium">{groupName}</div>
           <div className="text-sm text-gray-600">{owner}</div>
         </td>
-        <td className="p-3 text-gray-900">{tenantName}</td>
         <td className="p-3 text-gray-900 font-medium">{unitName}</td>
         <td className="p-3">
           <Input
@@ -231,7 +229,6 @@ export function StatementRow({
         <div className="font-medium">{groupName}</div>
         <div className="text-sm text-gray-600">{owner}</div>
       </td>
-      <td className="p-3 text-gray-700">{tenantName}</td>
       <td className="p-3 text-gray-900 font-medium">{unitName}</td>
       <td className="p-3">
         <Input

@@ -231,22 +231,10 @@ export function StatementsPage({
     loadAnnualData()
   }, [selectedYear, annualRefreshKey])
 
-  // Obtener unidades activas con alquileres en el período
+  // Mostrar TODAS las unidades no archivadas (permite cargar alquiler manual aunque no tengan período activo)
   const activeUnits = useMemo(() => {
-    const periodDate = parse(period, "yyyy-MM", new Date())
-    const periodStart = startOfMonth(periodDate)
-    const periodEnd = endOfMonth(periodDate)
-
-    return units.filter(unit => {
-      // Verificar si tiene un rental period activo en este período
-      return rentalPeriods.some(rp => 
-        rp.unitId === unit.id &&
-        rp.status === "ACTIVE" &&
-        new Date(rp.startDate) <= periodEnd &&
-        new Date(rp.endDate) >= periodStart
-      )
-    })
-  }, [units, rentalPeriods, period])
+    return units.filter((unit: any) => !unit.archived)
+  }, [units])
 
   // Estado para gastos del período mensual actual
   const [periodExpenses, setPeriodExpenses] = useState<any[]>(() => {
@@ -565,7 +553,6 @@ export function StatementsPage({
       const data = rows.map((row: any) => ({
         "Propietario/Grupo": row.unit?.propertyGroup?.name || "Sin Grupo",
         "Propietario": row.unit?.owner || "",
-        "Inquilino": row.tenant?.name || "Sin inquilino",
         "Unidad": row.unit?.name || "",
         "Alquiler": toNum(row.alquiler).toFixed(2),
         "OSSE": toNum(row.osse).toFixed(2),
@@ -594,7 +581,6 @@ export function StatementsPage({
           data.push({
             "Propietario/Grupo": `Subtotal ${groupTotal.groupName}`,
             "Propietario": "",
-            "Inquilino": "",
             "Unidad": "",
             "Alquiler": groupTotal.alquiler.toFixed(2),
             "OSSE": groupTotal.osse.toFixed(2),
@@ -618,7 +604,6 @@ export function StatementsPage({
         data.push({
           "Propietario/Grupo": "TOTAL GENERAL",
           "Propietario": "",
-          "Inquilino": "",
           "Unidad": "",
           "Alquiler": totalGeneral.alquiler.toFixed(2),
           "OSSE": totalGeneral.osse.toFixed(2),
@@ -677,7 +662,6 @@ export function StatementsPage({
 
       const data = annualRows.map((row: any) => ({
         "Propietario/Grupo": row.unit?.propertyGroup?.name || "Sin Grupo",
-        "Inquilino": row.tenant?.name || "Sin inquilino",
         "Unidad": row.unit?.name || "",
         "Alquiler": toNum(row.alquiler).toFixed(2),
         "OSSE": toNum(row.osse).toFixed(2),
@@ -704,7 +688,6 @@ export function StatementsPage({
         if (groupTotal.groupId !== null) {
           data.push({
             "Propietario/Grupo": `Subtotal ${groupTotal.groupName}`,
-            "Inquilino": "",
             "Unidad": "",
             "Alquiler": toNum(groupTotal.alquiler).toFixed(2),
             "OSSE": toNum(groupTotal.osse).toFixed(2),
@@ -726,7 +709,6 @@ export function StatementsPage({
       if (totalGeneral) {
         data.push({
           "Propietario/Grupo": "TOTAL GENERAL",
-          "Inquilino": "",
           "Unidad": "",
           "Alquiler": toNum(totalGeneral.alquiler).toFixed(2),
           "OSSE": toNum(totalGeneral.osse).toFixed(2),
@@ -841,7 +823,6 @@ export function StatementsPage({
               <thead>
                 <tr className="bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white">
                   <th className="text-left p-4 font-bold sticky left-0 bg-[#1B5E20] z-10 border-r border-[#4CAF50]">Propietario/Grupo</th>
-                  <th className="text-left p-4 font-bold">Inquilino</th>
                   <th className="text-left p-4 font-bold">Unidad</th>
                   <th className="text-right p-4 font-bold">Alquiler</th>
                   <th className="text-right p-4 font-bold">OSSE</th>
@@ -905,7 +886,7 @@ export function StatementsPage({
                     if (groupTotal && groupTotal.count > 0) {
                       renderedRows.push(
                         <tr key={`subtotal-${groupId || 'sin-grupo'}`} className="bg-[#E8F5E9] border-t-2 border-[#4CAF50] font-semibold">
-                          <td colSpan={3} className="p-3 text-[#1B5E20]">
+                          <td colSpan={2} className="p-3 text-[#1B5E20]">
                             Subtotal {groupTotal.groupName} ({groupTotal.count} {groupTotal.count === 1 ? 'unidad' : 'unidades'})
                           </td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.alquiler.toLocaleString()}</td>
@@ -931,7 +912,7 @@ export function StatementsPage({
                 {/* Subtotales por grupo (fallback si no se renderizaron arriba) */}
                 {groupTotals.filter(gt => gt.groupId !== null && !rows.some(r => r.unit?.propertyGroupId === gt.groupId)).map((groupTotal, idx) => (
                   <tr key={`subtotal-${groupTotal.groupId}`} className="bg-gray-100 border-t-2 border-gray-300 font-semibold">
-                    <td colSpan={3} className="p-3 text-gray-900">
+                    <td colSpan={2} className="p-3 text-gray-900">
                       Subtotal {groupTotal.groupName}
                     </td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.alquiler.toLocaleString()}</td>
@@ -952,7 +933,7 @@ export function StatementsPage({
                 {/* Total general */}
                 {groupTotals.find(gt => gt.groupId === null) && (
                   <tr className="bg-[#1B5E20] text-white border-t-2 border-gray-400 font-bold">
-                    <td colSpan={3} className="p-3">
+                    <td colSpan={2} className="p-3">
                       TOTAL GENERAL
                       {(() => {
                         const total = groupTotals.find(gt => gt.groupId === null)!
@@ -1040,7 +1021,6 @@ export function StatementsPage({
                 <thead>
                   <tr className="bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white">
                     <th className="text-left p-4 font-bold sticky left-0 bg-[#1B5E20] z-10 border-r border-[#4CAF50]">Propietario/Grupo</th>
-                    <th className="text-left p-4 font-bold">Inquilino</th>
                     <th className="text-left p-4 font-bold">Unidad</th>
                     <th className="text-right p-4 font-bold">Alquiler</th>
                     <th className="text-right p-4 font-bold">OSSE</th>
@@ -1058,7 +1038,7 @@ export function StatementsPage({
                 <tbody>
                   {annualRows.length === 0 ? (
                     <tr>
-                      <td colSpan={14} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
+                      <td colSpan={13} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
                         <div className="flex flex-col items-center gap-2">
                           <svg className="h-12 w-12 text-[#4CAF50] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1103,7 +1083,6 @@ export function StatementsPage({
                             <td className="p-3 text-gray-700 sticky left-0 bg-white z-10 border-r border-[#d4e6dc]">
                               {row.unit?.propertyGroup?.name || "Sin Grupo"}
                             </td>
-                            <td className="p-3 text-gray-700">{row.tenant?.name || "-"}</td>
                             <td className="p-3 text-gray-900 font-medium">{row.unit?.name || "-"}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.alquiler).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.osse).toLocaleString()}</td>
@@ -1125,7 +1104,7 @@ export function StatementsPage({
                         if (gt && gt.count > 0) {
                           renderedRows.push(
                             <tr key={`annual-subtotal-${groupId}`} className="bg-[#E8F5E9] border-t-2 border-[#4CAF50] font-semibold">
-                              <td colSpan={3} className="p-3 text-[#1B5E20]">
+                              <td colSpan={2} className="p-3 text-[#1B5E20]">
                                 Subtotal {gt.groupName} ({gt.count} {gt.count === 1 ? "unidad" : "unidades"})
                               </td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.alquiler).toLocaleString()}</td>
@@ -1149,7 +1128,7 @@ export function StatementsPage({
                     if (totalGeneral) {
                       renderedRows.push(
                         <tr key="annual-total-general" className="bg-[#1B5E20] text-white border-t-2 border-gray-400 font-bold">
-                          <td colSpan={3} className="p-3">
+                          <td colSpan={2} className="p-3">
                             TOTAL GENERAL ANUAL
                             {totalGeneral.count > 0 && (
                               <span className="text-xs font-normal opacity-90 ml-2">
@@ -1174,7 +1153,7 @@ export function StatementsPage({
 
                     return renderedRows.length > 0 ? renderedRows : (
                       <tr>
-                        <td colSpan={14} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
+                        <td colSpan={13} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
                           <div className="flex flex-col items-center gap-2">
                             <svg className="h-12 w-12 text-[#4CAF50] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

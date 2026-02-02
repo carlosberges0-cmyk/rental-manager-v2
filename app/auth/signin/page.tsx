@@ -1,13 +1,10 @@
 "use client"
 
-import Link from "next/link"
-import { buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { cn } from "@/lib/utils"
 
 export default function SignInPage() {
-  const callbackUrl = "/"
-  const signInUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`
+  const signInUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/")}`
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -19,12 +16,13 @@ export default function SignInPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Link
-            href={signInUrl}
-            className={cn(buttonVariants(), "w-full cursor-pointer bg-[#1B5E20] hover:bg-[#2E7D32]")}
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => { window.location.href = signInUrl }}
           >
             Continuar con Google
-          </Link>
+          </Button>
         </CardContent>
       </Card>
     </div>
