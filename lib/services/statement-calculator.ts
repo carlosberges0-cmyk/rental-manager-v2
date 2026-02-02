@@ -50,9 +50,10 @@ export function computeStatement(input: StatementInput): ComputedTotals {
   const otrosTotal = Number(input.otrosTotal || 0)
   const expensas = Number(input.expensas || 0)
 
-  // IVA como monto editable; si no se pasa, fallback a alquiler * ivaRate (legacy)
-  let ivaAlquiler = Number(input.iva ?? 0)
-  if (ivaAlquiler === 0 && input.aplicaIvaAlquiler && (input.ivaRate ?? 0) > 0) {
+  // IVA como monto editable; si se pasa explícitamente (incluso 0), usarlo. Si no, fallback a alquiler * ivaRate
+  const ivaExplicit = input.iva !== undefined && input.iva !== null
+  let ivaAlquiler = ivaExplicit ? Number(input.iva) : 0
+  if (!ivaExplicit && input.aplicaIvaAlquiler && (input.ivaRate ?? 0) > 0) {
     ivaAlquiler = alquiler * Number(input.ivaRate)
   }
 
