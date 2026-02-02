@@ -36,13 +36,13 @@ export interface ComputedTotals {
 /**
  * Calcula los totales de una liquidación mensual
  *
- * Reglas (según usuario):
- * - TOTAL_MES = ALQUILER + OSSE + INMOB + TSU + IVA
+ * Reglas (ejemplo: Alq 600k + OSSE 25k = 625k, - Exp 116k = 508955 Neto, - OSSE 25k - TSU 17797 = 466158 Neteado):
+ * - TOTAL_MES = ALQUILER + OSSE (solo OSSE se suma al alquiler para el total)
  * - NETO = TOTAL_MES - EXPENSAS
- * - GASTOS = OSSE + TSU + OBRAS + OTROS (para deducir del neto)
+ * - GASTOS = OSSE + TSU + OBRAS + OTROS (se deducen del neto para obtener neteado)
  * - NETEADO = NETO - GASTOS
  *
- * IVA es un input editable (no calculado desde alquiler).
+ * Inmob, TSU e IVA NO se suman al total del mes; OSSE sí. Luego del neto se restan OSSE, TSU, Obras y Otros.
  */
 export function computeStatement(input: StatementInput): ComputedTotals {
   const alquiler = Number(input.alquiler || 0)
@@ -59,8 +59,8 @@ export function computeStatement(input: StatementInput): ComputedTotals {
     ivaAlquiler = alquiler * Number(input.ivaRate)
   }
 
-  // 1. TOTAL_MES = ALQUILER + OSSE + INMOB + TSU + IVA
-  let totalMes = alquiler + osse + inmob + tsu + ivaAlquiler
+  // 1. TOTAL_MES = ALQUILER + OSSE (solo OSSE; Inmob, TSU, IVA no se suman aquí)
+  let totalMes = alquiler + osse
 
   // Agregar items CHARGE
   if (input.items) {
@@ -81,7 +81,7 @@ export function computeStatement(input: StatementInput): ComputedTotals {
   // 2. NETO = TOTAL_MES - EXPENSAS
   const neto = totalMes - expensas
 
-  // 3. GASTOS = OSSE + TSU + OBRAS + OTROS (para neteado; Inmob no se deduce)
+  // 3. GASTOS = OSSE + TSU + OBRAS + OTROS (se restan del neto para neteado)
   let gastos = osse + tsu + obras + otrosTotal
   if (input.items) {
     input.items.forEach(item => {
