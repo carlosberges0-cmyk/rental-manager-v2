@@ -250,11 +250,16 @@ export async function updateExpense(
 }
 
 export async function deleteExpense(id: string) {
+  const userId = await getDefaultUserId()
   const expense = await prisma.monthlyExpense.findFirst({
     where: { id },
+    include: { unit: true },
   })
   if (!expense) {
-    throw new Error("Expense not found")
+    throw new Error("Gasto no encontrado")
+  }
+  if (expense.unit.userId !== userId) {
+    throw new Error("No tenés permiso para eliminar este gasto")
   }
 
   await prisma.monthlyExpense.delete({

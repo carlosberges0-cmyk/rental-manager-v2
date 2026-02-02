@@ -13,10 +13,10 @@ import { upsertStatement, getStatements } from "@/lib/actions/statements"
 import { getExpenses } from "@/lib/actions/expenses"
 import { useRouter } from "next/navigation"
 import { StatementRow } from "./statement-row"
-import { Download, Plus } from "lucide-react"
+import { Download, Plus, Trash2 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { createExpense } from "@/lib/actions/expenses"
+import { createExpense, deleteExpense } from "@/lib/actions/expenses"
 
 interface StatementsPageProps {
   initialStatements: any[]
@@ -1241,20 +1241,49 @@ export function StatementsPage({
                       {expenseDetails.expenses.map((expense) => (
                         <div
                           key={expense.id}
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200"
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200 gap-3"
                         >
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-900">{expense.description || "Sin descripción"}</p>
                             <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
-                              <span>{format(new Date(expense.date), "dd/MM/yyyy")}</span>
+                              <span>{expense.date ? format(new Date(expense.date), "dd/MM/yyyy") : "-"}</span>
                               {expense.vendor ? <span>• {expense.vendor}</span> : null}
                               <span>• {expense.currency}</span>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="flex items-center gap-2 shrink-0">
                             <p className="font-semibold text-gray-900">
                               {Number(expense.amount).toLocaleString()} {expense.currency}
                             </p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={async () => {
+                                if (!confirm("¿Eliminar este gasto?")) return
+                                try {
+                                  await deleteExpense(expense.id)
+                                  setExpenseDetails((prev) => ({
+                                    ...prev,
+                                    expenses: prev.expenses.filter((e) => e.id !== expense.id),
+                                  }))
+                                  const allExpensesData = await getExpenses()
+                                  const filtered = allExpensesData.filter((e: any) => e.month === expenseFilterMonth)
+                                  setPeriodExpenses(filtered)
+                                  setAnnualRefreshKey((k) => k + 1)
+                                  router.refresh()
+                                  addToast({ title: "Gasto eliminado", description: "El gasto se ha eliminado correctamente" })
+                                } catch (err: any) {
+                                  addToast({
+                                    title: "Error",
+                                    description: err.message || "No se pudo eliminar el gasto",
+                                    variant: "destructive",
+                                  })
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
                       ))}
