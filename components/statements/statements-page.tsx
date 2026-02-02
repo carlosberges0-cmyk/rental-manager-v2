@@ -21,6 +21,7 @@ import { createExpense } from "@/lib/actions/expenses"
 interface StatementsPageProps {
   initialStatements: any[]
   units: any[]
+  propertyGroupsMap?: Map<string, string>
   rentalPeriods: any[]
   expenses: any[]
   initialPeriod: string
@@ -29,6 +30,7 @@ interface StatementsPageProps {
 export function StatementsPage({
   initialStatements,
   units,
+  propertyGroupsMap = new Map(),
   rentalPeriods,
   expenses,
   initialPeriod,
@@ -55,6 +57,9 @@ export function StatementsPage({
 
   const unitsRef = useRef(units)
   unitsRef.current = units
+
+  const getGroupName = (row: any) =>
+    row.unit?.propertyGroup?.name || (row.unit?.propertyGroupId ? propertyGroupsMap.get(row.unit.propertyGroupId) : null) || "Sin Grupo"
 
   // Un solo período: gastos del mes = mismo mes que la liquidación
   useEffect(() => {
@@ -203,8 +208,8 @@ export function StatementsPage({
         const rowsArray = Array.from(resultados.values())
           .filter(r => r.unit && (r.alquiler > 0 || r.gastos > 0 || r.expensas > 0))
           .sort((a, b) => {
-            const groupA = a.unit?.propertyGroup?.name || "ZZZ"
-            const groupB = b.unit?.propertyGroup?.name || "ZZZ"
+            const groupA = getGroupName(a) || "ZZZ"
+            const groupB = getGroupName(b) || "ZZZ"
             if (groupA !== groupB) return groupA.localeCompare(groupB)
             return (a.unit?.name || "").localeCompare(b.unit?.name || "")
           })
@@ -390,8 +395,8 @@ export function StatementsPage({
 
     // Ordenar por grupo y luego por nombre de unidad
     return Array.from(rowsMap.values()).sort((a, b) => {
-      const groupA = a.unit?.propertyGroup?.name || "ZZZ"
-      const groupB = b.unit?.propertyGroup?.name || "ZZZ"
+      const groupA = getGroupName(a) || "ZZZ"
+      const groupB = getGroupName(b) || "ZZZ"
       if (groupA !== groupB) {
         return groupA.localeCompare(groupB)
       }
@@ -404,7 +409,7 @@ export function StatementsPage({
     const rowsWithGroup = rows.map(row => ({
       ...row,
       groupId: row.unit?.propertyGroupId || null,
-      groupName: row.unit?.propertyGroup?.name || "Sin Grupo",
+      groupName: getGroupName(row),
     }))
 
     return aggregateByGroup(rowsWithGroup)
@@ -414,7 +419,7 @@ export function StatementsPage({
     const rowsWithGroup = annualRows.map((row: any) => ({
       ...row,
       groupId: row.unit?.propertyGroupId ?? row.unit?.propertyGroup?.id ?? null,
-      groupName: row.unit?.propertyGroup?.name || "Sin Grupo",
+      groupName: getGroupName(row),
     }))
     return aggregateByGroup(rowsWithGroup)
   }, [annualRows])
@@ -551,7 +556,7 @@ export function StatementsPage({
       }
 
       const data = rows.map((row: any) => ({
-        "Propietario/Grupo": row.unit?.propertyGroup?.name || "Sin Grupo",
+        "Propietario/Grupo": getGroupName(row),
         "Propietario": row.unit?.owner || "",
         "Unidad": row.unit?.name || "",
         "Alquiler": toNum(row.alquiler).toFixed(2),
@@ -573,7 +578,7 @@ export function StatementsPage({
       const rowsWithGroup = rows.map(row => ({
         ...row,
         groupId: row.unit?.propertyGroupId || null,
-        groupName: row.unit?.propertyGroup?.name || "Sin Grupo",
+        groupName: getGroupName(row),
       }))
       const exportGroupTotals = aggregateByGroup(rowsWithGroup)
       exportGroupTotals.forEach((groupTotal: any) => {
@@ -661,7 +666,7 @@ export function StatementsPage({
       }
 
       const data = annualRows.map((row: any) => ({
-        "Propietario/Grupo": row.unit?.propertyGroup?.name || "Sin Grupo",
+        "Propietario/Grupo": getGroupName(row),
         "Unidad": row.unit?.name || "",
         "Alquiler": toNum(row.alquiler).toFixed(2),
         "OSSE": toNum(row.osse).toFixed(2),
@@ -680,7 +685,7 @@ export function StatementsPage({
       const annualRowsWithGroup = annualRows.map((row: any) => ({
         ...row,
         groupId: row.unit?.propertyGroupId ?? row.unit?.propertyGroup?.id ?? null,
-        groupName: row.unit?.propertyGroup?.name || "Sin Grupo",
+        groupName: getGroupName(row),
       }))
       const annualGroupTotals = aggregateByGroup(annualRowsWithGroup)
 
@@ -860,6 +865,7 @@ export function StatementsPage({
                         <StatementRow
                           key={row.unitId || `new-${row.unitId}`}
                           row={row}
+                          propertyGroupsMap={propertyGroupsMap}
                           isEditing={editingRow === row.unitId}
                           onEdit={() => setEditingRow(row.unitId)}
                           onCancel={() => setEditingRow(null)}
@@ -1067,7 +1073,7 @@ export function StatementsPage({
                     const groupOrder = Array.from(rowsByGroup.entries())
                       .map(([gid, rows]) => ({
                         groupId: gid,
-                        groupName: (rows[0]?.unit?.propertyGroup?.name || (gid === null ? "Total General" : "Sin Grupo")),
+                        groupName: (rows[0] ? getGroupName(rows[0]) : (gid === null ? "Total General" : "Sin Grupo")),
                       }))
                       .sort((a, b) => {
                         if (a.groupId === null) return 1
@@ -1081,7 +1087,7 @@ export function StatementsPage({
                         renderedRows.push(
                           <tr key={`annual-${row.unitId}`} className="border-b border-[#d4e6dc] hover:bg-[#F1F8F4]">
                             <td className="p-3 text-gray-700 sticky left-0 bg-white z-10 border-r border-[#d4e6dc]">
-                              {row.unit?.propertyGroup?.name || "Sin Grupo"}
+                              {getGroupName(row)}
                             </td>
                             <td className="p-3 text-gray-900 font-medium">{row.unit?.name || "-"}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.alquiler).toLocaleString()}</td>

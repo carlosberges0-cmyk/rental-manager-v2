@@ -35,9 +35,18 @@ function toStr(v: unknown): string {
   return String(v)
 }
 
+function toPropertyGroupUI(pg: unknown): { id: string; name: string } | null {
+  if (!pg || typeof pg !== "object") return null
+  const p = pg as Record<string, unknown>
+  const id = toStr(p.id)
+  const name = toStr(p.name)
+  return id || name ? { id, name } : null
+}
+
 export function toUnitUI(u: unknown): UnitUI | null {
   if (!u || typeof u !== "object") return null
   const ui = u as Record<string, unknown>
+  const propertyGroup = ui.propertyGroup != null ? toPropertyGroupUI(ui.propertyGroup) : null
   return {
     id: toStr(ui.id),
     userId: toStr(ui.userId),
@@ -46,6 +55,7 @@ export function toUnitUI(u: unknown): UnitUI | null {
     type: toStr(ui.type),
     owner: ui.owner != null ? toStr(ui.owner) : null,
     propertyGroupId: ui.propertyGroupId != null ? toStr(ui.propertyGroupId) : null,
+    propertyGroup,
     notes: ui.notes != null ? toStr(ui.notes) : null,
     archived: Boolean(ui.archived),
     ivaRatePercent: toNum(ui.ivaRatePercent),

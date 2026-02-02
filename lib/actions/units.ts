@@ -276,22 +276,21 @@ export async function getUnits() {
       return []
     }
 
-    // First, try to fetch units without propertyGroup to avoid column name issues
-    // If that works, try to include propertyGroup
+    // Fetch units with propertyGroup for display in statements/lists
     let units
     try {
-      // Fetch without propertyGroup first - FILTRAR POR USERID
       const rawUnits = await prisma.unit.findMany({
         where: { 
           userId,
           archived: false 
         },
+        include: {
+          propertyGroup: true,
+        },
         orderBy: { name: "asc" },
       })
-      // IMMEDIATELY convert all Decimal fields right after fetching from Prisma
       units = rawUnits.map((u: any) => {
         const converted: any = { ...u }
-        // Convert Decimal fields immediately
         if (converted.ivaRatePercent && typeof converted.ivaRatePercent.toNumber === 'function') {
           converted.ivaRatePercent = converted.ivaRatePercent.toNumber()
         }
@@ -306,54 +305,32 @@ export async function getUnits() {
         }
         return converted
       })
-      
-      // If successful, try to fetch with propertyGroup for better data
-      // But catch any errors silently - we'll use the data without propertyGroup
-      try {
-        const unitsWithPropertyGroup = await prisma.unit.findMany({
-          where: { 
-            userId,
-            archived: false 
-          },
-          include: {
-            propertyGroup: true,
-          },
+    } catch (fetchError: any) {
+      // Fallback: try without propertyGroup if relation fails
+      if (fetchError.message?.includes('propertyGroup') || fetchError.code === 'P2001') {
+        const rawUnits = await prisma.unit.findMany({
+          where: { userId, archived: false },
           orderBy: { name: "asc" },
         })
-        // IMMEDIATELY convert all Decimal fields right after fetching from Prisma
-        units = unitsWithPropertyGroup.map((u: any) => {
+        units = rawUnits.map((u: any) => {
           const converted: any = { ...u }
-          // Convert Decimal fields immediately
-          if (converted.ivaRatePercent && typeof converted.ivaRatePercent.toNumber === 'function') {
+          if (converted.ivaRatePercent && typeof converted.ivaRatePercent?.toNumber === 'function') {
             converted.ivaRatePercent = converted.ivaRatePercent.toNumber()
           }
-          if (converted.iibbRatePercent && typeof converted.iibbRatePercent.toNumber === 'function') {
+          if (converted.iibbRatePercent && typeof converted.iibbRatePercent?.toNumber === 'function') {
             converted.iibbRatePercent = converted.iibbRatePercent.toNumber()
           }
-          if (converted.igRatePercent && typeof converted.igRatePercent.toNumber === 'function') {
+          if (converted.igRatePercent && typeof converted.igRatePercent?.toNumber === 'function') {
             converted.igRatePercent = converted.igRatePercent.toNumber()
           }
-          if (converted.monthlyExpensesAmount && typeof converted.monthlyExpensesAmount.toNumber === 'function') {
+          if (converted.monthlyExpensesAmount && typeof converted.monthlyExpensesAmount?.toNumber === 'function') {
             converted.monthlyExpensesAmount = converted.monthlyExpensesAmount.toNumber()
           }
           return converted
         })
-      } catch (includeError: any) {
-        // PropertyGroup relation not available, but we already have units without it
-        if (includeError.message?.includes('propertyGroup') || 
-            includeError.message?.includes('PropertyGroup') ||
-            includeError.message?.includes('propertyGroupld') ||
-            includeError.message?.includes('propertyGroupId') ||
-            includeError.code === 'P2001') {
-          console.warn('⚠️  PropertyGroup relation not available. Using units without propertyGroup. Please run "npx prisma generate" and "npx prisma migrate dev"')
-        } else {
-          // For other errors, log but continue with units without propertyGroup
-          console.warn('⚠️  Error fetching propertyGroup:', includeError.message || includeError)
-        }
+      } else {
+        throw fetchError
       }
-    } catch (fetchError: any) {
-      // If the basic fetch fails, throw the error
-      throw fetchError
     }
 
     // Convert Decimal to number for client components - ULTRA SIMPLE VERSION

@@ -4,6 +4,11 @@
  * No Prisma types.
  */
 
+export type PropertyGroupUI = {
+  id: string
+  name: string
+}
+
 export type UnitUI = {
   id: string
   userId: string
@@ -12,6 +17,7 @@ export type UnitUI = {
   type: string
   owner: string | null
   propertyGroupId: string | null
+  propertyGroup: PropertyGroupUI | null
   notes: string | null
   archived: boolean
   ivaRatePercent: number | null

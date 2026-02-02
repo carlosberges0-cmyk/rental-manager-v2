@@ -8,6 +8,7 @@ import { computeStatement } from "@/lib/services/statement-calculator"
 
 interface StatementRowProps {
   row: any
+  propertyGroupsMap?: Map<string, string>
   isEditing: boolean
   onEdit: () => void
   onCancel: () => void
@@ -26,6 +27,7 @@ interface StatementRowProps {
 
 export function StatementRow({
   row,
+  propertyGroupsMap = new Map(),
   isEditing,
   onEdit,
   onCancel,
@@ -109,7 +111,7 @@ export function StatementRow({
     onCancel()
   }
 
-  const groupName = row.unit?.propertyGroup?.name || "Sin Grupo"
+  const groupName = row.unit?.propertyGroup?.name || (row.unit?.propertyGroupId ? propertyGroupsMap.get(row.unit.propertyGroupId) : null) || "Sin Grupo"
   const owner = row.unit?.owner || "-"
   const unitName = row.unit?.name || "-"
 
