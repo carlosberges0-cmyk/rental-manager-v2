@@ -343,7 +343,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     byGroup["__sin_grupo__"] = { name: "Sin Grupo", income: 0, expenses: 0, margin: 0, unitCount: 0 }
     // Sumar métricas de cada unidad
     unitMetrics.forEach(metric => {
-      const gid = metric.unit.propertyGroupId || metric.unit.propertyGroup?.id ?? "__sin_grupo__"
+      const gid = (metric.unit.propertyGroupId || metric.unit.propertyGroup?.id) ?? "__sin_grupo__"
       const groupName = metric.unit.propertyGroup?.name ?? propertyGroupsMap.get(metric.unit.propertyGroupId || "") ?? "Sin Grupo"
       if (!byGroup[gid]) byGroup[gid] = { name: groupName, income: 0, expenses: 0, margin: 0, unitCount: 0 }
       byGroup[gid].income += metric.income
@@ -458,7 +458,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis type="number" stroke="#6b7280" />
                 <YAxis type="category" dataKey="name" width={120} stroke="#6b7280" />
-                <Tooltip formatter={(v: number) => [v.toLocaleString() + " " + selectedCurrency, "Margen"]} />
+                <Tooltip formatter={(v: number | undefined) => [v != null ? v.toLocaleString() + " " + selectedCurrency : "0", "Margen"]} />
                 <Bar dataKey="Margen" fill="#1B5E20" name="Margen" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
