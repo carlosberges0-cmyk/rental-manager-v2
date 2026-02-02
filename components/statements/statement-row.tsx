@@ -54,6 +54,9 @@ export function StatementRow({
   const [ivaInput, setIvaInput] = useState<string>(() =>
     row.ivaAlquiler != null && row.ivaAlquiler !== "" ? String(row.ivaAlquiler) : ""
   )
+  const [expensasInput, setExpensasInput] = useState<string>(() =>
+    row.expensas != null && row.expensas !== "" ? String(row.expensas) : ""
+  )
 
   useEffect(() => {
     const v = row.alquiler != null && row.alquiler !== "" ? String(row.alquiler) : ""
@@ -63,6 +66,10 @@ export function StatementRow({
     const v = row.ivaAlquiler != null && row.ivaAlquiler !== "" ? String(row.ivaAlquiler) : ""
     setIvaInput(v)
   }, [row.unitId, row.period, row.ivaAlquiler])
+  useEffect(() => {
+    const v = row.expensas != null && row.expensas !== "" ? String(row.expensas) : ""
+    setExpensasInput(v)
+  }, [row.unitId, row.period, row.expensas])
 
   useEffect(() => {
     if (isEditing) {
@@ -338,7 +345,34 @@ export function StatementRow({
         />
       </td>
       <td className="p-3 text-right text-gray-900 font-semibold">{row.totalMes?.toLocaleString() || "0"}</td>
-      <td className="p-3 text-right text-gray-700">{row.expensas?.toLocaleString() || "-"}</td>
+      <td className="p-3">
+        <Input
+          type="number"
+          step="0.01"
+          min={0}
+          value={expensasInput}
+          onChange={(e) => setExpensasInput(e.target.value)}
+          onBlur={() => {
+            const n = expensasInput === "" ? 0 : parseFloat(expensasInput)
+            if (!Number.isNaN(n)) {
+              const newComputed = computeStatement({
+                alquiler: row.alquiler || 0,
+                osse: row.osse || undefined,
+                inmob: row.inmob || undefined,
+                tsu: row.tsu || undefined,
+                obras: row.obras || undefined,
+                otrosTotal: row.otrosTotal || undefined,
+                iva: row.ivaAlquiler ?? undefined,
+                expensas: n,
+                aplicaIvaAlquiler,
+                ivaRate,
+              })
+              onSave({ ...row, ...newComputed, expensas: n })
+            }
+          }}
+          className="w-24 text-right h-9"
+        />
+      </td>
       <td className="p-3 text-right text-gray-700 font-medium">{row.neto?.toLocaleString() || "0"}</td>
       <td className="p-3 text-right text-gray-900 font-semibold">{row.neteado?.toLocaleString() || "0"}</td>
       <td className="p-3">

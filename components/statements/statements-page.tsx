@@ -1378,14 +1378,20 @@ function ExpenseDialog({
           <DialogTitle className="text-gray-900">Nuevo Gasto</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {units.length === 0 ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              No hay unidades disponibles. Creá una unidad primero.
+            </div>
+          ) : (
           <div>
             <Label htmlFor="unitId" className="text-gray-900">Unidad *</Label>
             <Select
               id="unitId"
-              value={formData.unitId}
+              value={formData.unitId || units[0]?.id}
               onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
               required
             >
+              <option value="">Seleccionar unidad</option>
               {units.map((unit) => (
                 <option key={unit.id} value={unit.id}>
                   {unit.name}
@@ -1393,6 +1399,7 @@ function ExpenseDialog({
               ))}
             </Select>
           </div>
+          )}
           
           <div>
             <Label htmlFor="date" className="text-gray-900">Fecha del gasto *</Label>
@@ -1486,7 +1493,7 @@ function ExpenseDialog({
             </Button>
             <Button 
               type="submit" 
-              disabled={loading}
+              disabled={loading || units.length === 0}
               className="bg-[#1B5E20] hover:bg-[#2E7D32] text-white"
             >
               <Plus className="h-4 w-4 mr-2" />
