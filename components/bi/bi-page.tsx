@@ -8,7 +8,7 @@ import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
-type StatementClient = { period: string; unitId: string; alquiler: number; currency?: string }
+type StatementClient = { period: string; unitId: string; alquiler: number; expensas?: number | null; currency?: string }
 
 interface BIPageProps {
   taxData: TaxDataUI
@@ -26,7 +26,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   const currentYear = new Date().getFullYear()
   const taxData = initialTaxData || { income: 0, expenses: 0, ivaAmount: 0, iibbAmount: 0, igEstimate: 0, deductibleExpenses: 0, incomeByMonth: {}, expensesByMonth: {} }
   
-  // Ingresos = alquiler desde liquidaciones (statements)
+  // Ingresos y expensas desde liquidaciones (statements)
   const incomeByMonthFromStatements = useMemo(() => {
     const stmts = statementsByYear[selectedYear] || []
     const byMonth: Record<string, number> = {}
@@ -39,6 +39,19 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     return byMonth
   }, [statementsByYear, selectedYear, selectedCurrency])
 
+  const expensasByMonthFromStatements = useMemo(() => {
+    const stmts = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => !s.currency || s.currency === selectedCurrency
+    )
+    const byMonth: Record<string, number> = {}
+    stmts.forEach((s: StatementClient) => {
+      if (!s.period?.startsWith(`${selectedYear}-`)) return
+      const exp = s.expensas != null ? Number(s.expensas) : 0
+      byMonth[s.period] = (byMonth[s.period] || 0) + exp
+    })
+    return byMonth
+  }, [statementsByYear, selectedYear, selectedCurrency])
+
   // Calculate YTD KPIs for selected year
   const ytdKPIs = useMemo(() => {
     let ytdIncome = 0
@@ -47,11 +60,21 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       ? (Number(initialTaxData.ivaAmount) || 0) + (Number(initialTaxData.iibbAmount) || 0) + (Number(initialTaxData.igEstimate) || 0)
       : 0
     
+    // Expensas = gastos del edificio desde liquidaciones (statements)
+    let ytdExpensas = 0
+    const stmtsForYear = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => !s.currency || s.currency === selectedCurrency
+    )
+    stmtsForYear.forEach((s: StatementClient) => {
+      if (!s.period?.startsWith(`${selectedYear}-`)) return
+      const exp = s.expensas != null ? Number(s.expensas) : 0
+      ytdExpensas += exp
+    })
+
     // Calculate YTD expenses breakdown for selected year and currency
     const yearExpenses = expenses.filter(e => e.currency === selectedCurrency && e.month.startsWith(`${selectedYear}-`))
     
     let ytdManualExpenses = 0
-    let ytdExpensas = 0
     let ytdDeductibleExpenses = 0
     
     yearExpenses.forEach(expense => {
@@ -89,7 +112,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       ytdMargin,
       profitability,
     }
-  }, [incomeByMonthFromStatements, initialTaxData, expenses, units, selectedYear, selectedCurrency])
+  }, [incomeByMonthFromStatements, initialTaxData, statementsByYear, expenses, units, selectedYear, selectedCurrency])
   
   const { ytdIncome, ytdGastos, ytdExpensas, ytdMargin, profitability } = ytdKPIs
 
@@ -114,14 +137,18 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   const monthlyData = months.map((month) => {
     const monthKey = format(month, "yyyy-MM")
     const income = incomeByMonthFromStatements[monthKey] ?? (taxData.incomeByMonth?.[monthKey] ?? 0)
-    const expenseData = (taxData.expensesByMonth && taxData.expensesByMonth[monthKey]) || { total: 0, deductible: 0 }
     const expenseFromList = expenses
       .filter((e) => e.currency === selectedCurrency && e.month === monthKey)
       .reduce((sum, e) => sum + (typeof e.amount === "number" ? e.amount : Number(e.amount) || 0), 0)
+    const expensasFromStmts = expensasByMonthFromStatements[monthKey] ?? 0
+    const expenseData = taxData.expensesByMonth?.[monthKey]
+    const gastos = selectedYear === new Date().getFullYear() && expenseData
+      ? expenseData.total
+      : expenseFromList + expensasFromStmts
     return {
       month: format(month, "MMM"),
       Ingresos: income,
-      Gastos: expenseData.total || expenseFromList || 0,
+      Gastos: gastos,
     }
   })
 
@@ -230,22 +257,25 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         metrics[unitId].expenses = Number(metrics[unitId].expenses) + Number(baseAmount)
       })
 
-    // Add unit's monthly expenses to each unit's total expenses
-    // For annual calculation, multiply by 12 months
+    // Expensas desde liquidaciones (statements) - gastos del edificio por unidad
+    stmts.forEach((s: StatementClient) => {
+      const unitId = s.unitId
+      if (!metrics[unitId]) return
+      const exp = s.expensas != null ? Number(s.expensas) : 0
+      metrics[unitId].expensas = Number(metrics[unitId].expensas) + exp
+      metrics[unitId].expenses = Number(metrics[unitId].expenses) + exp
+    })
+
+    // Fallback: unit's monthlyExpensesAmount para unidades sin statements en el año
     units.forEach(unit => {
       if (!metrics[unit.id]) return
-      
       const monthlyExpensesAmount = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
-      
-      if (monthlyExpensesAmount > 0) {
-        // For annual metrics, multiply monthly expenses by 12
+      metrics[unit.id].unitMonthlyExpenses = monthlyExpensesAmount
+      const hasStatementsForUnit = stmts.some((s: StatementClient) => s.unitId === unit.id)
+      if (!hasStatementsForUnit && monthlyExpensesAmount > 0) {
         const annualUnitExpenses = monthlyExpensesAmount * 12
-        // Store unit monthly expenses separately (without multiplying, for reference)
-        metrics[unit.id].unitMonthlyExpenses = monthlyExpensesAmount
-        // Add annual amount to total expenses (esto son expensas del edificio, van en expensas)
-        metrics[unit.id].expensas = Number(metrics[unit.id].expensas) + Number(annualUnitExpenses)
-        // También sumar a expenses (el total)
-        metrics[unit.id].expenses = Number(metrics[unit.id].expenses) + Number(annualUnitExpenses)
+        metrics[unit.id].expensas = Number(metrics[unit.id].expensas) + annualUnitExpenses
+        metrics[unit.id].expenses = Number(metrics[unit.id].expenses) + annualUnitExpenses
       }
     })
 

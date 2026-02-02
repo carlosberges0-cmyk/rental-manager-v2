@@ -73,7 +73,7 @@ export async function calculateTaxes(year: number, month?: number) {
     where: { archived: false },
   })
 
-  // Ingresos = alquiler desde liquidaciones (statements), no desde rental periods
+  // Ingresos = alquiler desde liquidaciones (statements)
   let totalIncome = 0
   const incomeByMonth: Record<string, number> = {}
   const statements = await getStatementsByYear(year)
@@ -86,10 +86,23 @@ export async function calculateTaxes(year: number, month?: number) {
     totalIncome += alq
   }
 
-  // Calculate expenses
+  // Calculate expenses: expensas (liquidaciones) + gastos manuales + unitMonthlyExpenses
   let totalExpenses = 0
   let deductibleExpenses = 0
   const expensesByMonth: Record<string, { total: number; deductible: number }> = {}
+
+  // Expensas = gastos del edificio desde liquidaciones (statements)
+  for (const stmt of statements) {
+    const monthKey = stmt.period
+    if (!monthKey?.startsWith(`${year}-`)) continue
+    if (monthFilter && monthKey !== monthFilter) continue
+    const exp = stmt.expensas != null ? Number(stmt.expensas) : 0
+    if (exp > 0) {
+      totalExpenses += exp
+      if (!expensesByMonth[monthKey]) expensesByMonth[monthKey] = { total: 0, deductible: 0 }
+      expensesByMonth[monthKey].total += exp
+    }
+  }
 
   for (const expense of expenses) {
     // Convert amount to number safely (handling Decimal)
