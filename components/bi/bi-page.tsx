@@ -8,7 +8,7 @@ import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
-type StatementClient = { period: string; unitId: string; alquiler: number; expensas?: number | null; currency?: string }
+type StatementClient = { period: string; unitId: string; alquiler: number; expensas?: number | null; currency?: string; unit?: { propertyGroup?: { id: string; name: string } | null } | null }
 
 interface BIPageProps {
   taxData: TaxDataUI
@@ -16,9 +16,10 @@ interface BIPageProps {
   rentalPeriods: RentalPeriodUI[]
   expenses: ExpenseUI[]
   units: UnitUI[]
+  propertyGroups?: { id: string; name: string }[]
 }
 
-export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalPeriods, expenses, units }: BIPageProps) {
+export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalPeriods, expenses, units, propertyGroups = [] }: BIPageProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("ARS")
 
@@ -305,39 +306,13 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
       metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
       
-      // Debug log para verificar cálculos
-      if (metric.income > 0) {
-        console.log(`[BI] ${metric.unit.name}:`, {
-          income: metric.income,
-          expenses_total: metric.expenses,
-          manualExpenses: metric.manualExpenses,
-          expensas: metric.expensas,
-          unitMonthlyExpenses: metric.unitMonthlyExpenses,
-          taxes: metric.taxes,
-          deductibleExpenses: metric.deductibleExpenses,
-          margin_calculated: metric.margin,
-          margin_expected: metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses,
-          profitability: metric.profitability
-        })
-      }
       metric.occupancyRate = 365 > 0 ? (metric.occupancyDays / 365) * 100 : 0
     })
 
     // Filtrar métricas que tienen datos
-    const finalMetrics = Object.values(metrics).filter(m => {
-      const hasData = m.income > 0 || m.expenses > 0 || m.expensas > 0 || m.manualExpenses > 0
-      if (hasData) {
-        console.log(`[BI Final] ${m.unit.name} (${m.unit.id}):`, {
-          income: m.income,
-          manualExpenses: m.manualExpenses,
-          expensas: m.expensas,
-          expenses_total: m.expenses,
-          margin: m.margin,
-          margin_should_be: m.income - m.manualExpenses - m.expensas - m.taxes + m.deductibleExpenses
-        })
-      }
-      return hasData
-    })
+    const finalMetrics = Object.values(metrics).filter(m =>
+      m.income > 0 || m.expenses > 0 || m.expensas > 0 || m.manualExpenses > 0
+    )
     
     // Ordenar por nombre y luego por ingresos (puede haber múltiples unidades con el mismo nombre)
     return finalMetrics.sort((a, b) => {
@@ -348,7 +323,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     })
   }, [units, statementsByYear, rentalPeriods, expenses, selectedYear, selectedCurrency])
 
-  // Prepare comparison chart data
+  // Prepare comparison chart data (por unidad)
   const comparisonChartData = unitMetrics.map(metric => ({
     name: metric.unit.name,
     Ingresos: metric.income,
@@ -356,6 +331,37 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     Margen: metric.margin,
     Rentabilidad: metric.profitability,
   }))
+
+  // Métricas por grupo (incluye todos los grupos para que aparezcan Constitucion, etc.)
+  const propertyGroupsMap = useMemo(() => new Map(propertyGroups.map(g => [g.id, g.name])), [propertyGroups])
+  const groupMetrics = useMemo(() => {
+    const byGroup: Record<string, { name: string; income: number; expenses: number; margin: number; unitCount: number }> = {}
+    // Inicializar todos los grupos (para que aparezcan aunque tengan 0)
+    propertyGroups.forEach(g => {
+      byGroup[g.id] = { name: g.name, income: 0, expenses: 0, margin: 0, unitCount: 0 }
+    })
+    byGroup["__sin_grupo__"] = { name: "Sin Grupo", income: 0, expenses: 0, margin: 0, unitCount: 0 }
+    // Sumar métricas de cada unidad
+    unitMetrics.forEach(metric => {
+      const gid = metric.unit.propertyGroupId || metric.unit.propertyGroup?.id ?? "__sin_grupo__"
+      const groupName = metric.unit.propertyGroup?.name ?? propertyGroupsMap.get(metric.unit.propertyGroupId || "") ?? "Sin Grupo"
+      if (!byGroup[gid]) byGroup[gid] = { name: groupName, income: 0, expenses: 0, margin: 0, unitCount: 0 }
+      byGroup[gid].income += metric.income
+      byGroup[gid].expenses += metric.expenses
+      byGroup[gid].margin += metric.margin
+      byGroup[gid].unitCount += 1
+    })
+    const result = Object.entries(byGroup).map(([id, data]) => ({ ...data, id }))
+    result.sort((a, b) => (a.name === "Sin Grupo" ? 1 : 0) - (b.name === "Sin Grupo" ? 1 : 0) || a.name.localeCompare(b.name))
+    return result
+  }, [unitMetrics, propertyGroups, propertyGroupsMap])
+
+  // Datos para gráfico de margen por grupo + Total General
+  const marginByGroupChartData = useMemo(() => {
+    const rows = groupMetrics.map(g => ({ name: g.name, Margen: g.margin }))
+    rows.push({ name: "Total General", Margen: ytdMargin })
+    return rows
+  }, [groupMetrics, ytdMargin])
 
   return (
     <div className="container mx-auto p-6 bg-white min-h-screen">
@@ -439,11 +445,32 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         </Card>
       </div>
 
+      {/* Margen por Grupo */}
+      {marginByGroupChartData.length > 0 && (
+        <Card className="border border-gray-200 mb-6">
+          <CardHeader className="bg-white border-b border-gray-200">
+            <CardTitle className="text-gray-900">Margen por Grupo ({selectedYear})</CardTitle>
+            <CardDescription className="text-gray-600">Margen por grupo de propiedades y total general</CardDescription>
+          </CardHeader>
+          <CardContent className="bg-white">
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={marginByGroupChartData} layout="vertical" margin={{ left: 20, right: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis type="number" stroke="#6b7280" />
+                <YAxis type="category" dataKey="name" width={120} stroke="#6b7280" />
+                <Tooltip formatter={(v: number) => [v.toLocaleString() + " " + selectedCurrency, "Margen"]} />
+                <Bar dataKey="Margen" fill="#1B5E20" name="Margen" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card className="border border-gray-200">
           <CardHeader className="bg-white border-b border-gray-200">
-            <CardTitle className="text-gray-900">Ingresos vs Gastos (Últimos 12 meses)</CardTitle>
+            <CardTitle className="text-gray-900">Ingresos vs Gastos ({selectedYear})</CardTitle>
           </CardHeader>
           <CardContent className="bg-white">
             <ResponsiveContainer width="100%" height={300}>
@@ -477,44 +504,6 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
           </CardContent>
         </Card>
       </div>
-
-      {/* Tax Summary */}
-      <Card className="border border-gray-200 mb-6">
-        <CardHeader className="bg-[#F1F8F4] border-b border-[#d4e6dc]">
-          <CardTitle className="text-[#1B5E20]">Resumen de Impuestos</CardTitle>
-          <CardDescription className="text-gray-700">
-            Cálculos orientativos; validar con contador
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="bg-white">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <div className="text-sm text-gray-600 mb-1">IVA</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {(taxData.ivaAmount ?? 0).toLocaleString()} {selectedCurrency}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-600 mb-1">IIBB</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {(taxData.iibbAmount ?? 0).toLocaleString()} {selectedCurrency}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-600 mb-1">IG (Estimación)</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {(taxData.igEstimate ?? 0).toLocaleString()} {selectedCurrency}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-600 mb-1">Gastos Deducibles</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {(taxData.deductibleExpenses ?? 0).toLocaleString()} {selectedCurrency}
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Unit-by-Unit Metrics */}
       <div className="mb-6">
@@ -550,6 +539,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
               <thead>
                 <tr className="bg-[#F1F8F4] border-b-2 border-[#d4e6dc]">
                   <th className="text-left p-4 font-semibold text-[#1B5E20]">Unidad</th>
+                  <th className="text-left p-4 font-semibold text-[#1B5E20]">Grupo</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Ingresos</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Gastos</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Expensas</th>
@@ -566,6 +556,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                     className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                   >
                     <td className="p-4 font-medium text-gray-900">{metric.unit.name}</td>
+                    <td className="p-4 text-gray-600">{metric.unit.propertyGroup?.name ?? propertyGroupsMap.get(metric.unit.propertyGroupId || "") ?? "Sin Grupo"}</td>
                     <td className="p-4 text-right font-semibold text-green-600">
                       {metric.income.toLocaleString()} {selectedCurrency}
                     </td>

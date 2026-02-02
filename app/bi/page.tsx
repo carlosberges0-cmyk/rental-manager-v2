@@ -5,13 +5,14 @@ import { getStatementsByYear } from "@/lib/actions/statements"
 import { getRentalPeriods } from "@/lib/actions/rental-periods"
 import { getExpenses } from "@/lib/actions/expenses"
 import { getUnits } from "@/lib/actions/units"
+import { getPropertyGroups } from "@/lib/actions/property-groups"
 import { toRentalPeriodUI, toExpenseUI, toUnitUI, toTaxDataUI } from "@/lib/ui-mappers"
 
 export const dynamic = "force-dynamic"
 
 export default async function BIPageRoute() {
   const currentYear = new Date().getFullYear()
-  const [taxData, statementsCurrent, statementsPrev1, statementsPrev2, rentalPeriods, expenses, units] = await Promise.all([
+  const [taxData, statementsCurrent, statementsPrev1, statementsPrev2, rentalPeriods, expenses, units, propertyGroups] = await Promise.all([
     calculateTaxes(currentYear),
     getStatementsByYear(currentYear),
     getStatementsByYear(currentYear - 1),
@@ -19,6 +20,7 @@ export default async function BIPageRoute() {
     getRentalPeriods(),
     getExpenses(),
     getUnits(),
+    getPropertyGroups(),
   ])
   const statementsByYear: Record<number, typeof statementsCurrent> = {
     [currentYear]: statementsCurrent,
@@ -27,6 +29,7 @@ export default async function BIPageRoute() {
   }
 
   const taxDataForUI = toTaxDataUI(taxData)
+  const propertyGroupsForUI = (propertyGroups || []).map((g: { id: string; name: string }) => ({ id: g.id, name: g.name }))
   const rentalPeriodsForUI = rentalPeriods.map((rp: unknown) => toRentalPeriodUI(rp))
   const expensesForUI = expenses.map((e: unknown) => toExpenseUI(e))
   const unitsForUI = units.map((u: unknown) => toUnitUI(u)).filter((u: UnitUI | null): u is UnitUI => u !== null)
@@ -38,6 +41,7 @@ export default async function BIPageRoute() {
       rentalPeriods={rentalPeriodsForUI}
       expenses={expensesForUI}
       units={unitsForUI}
+      propertyGroups={propertyGroupsForUI}
     />
   )
 }
