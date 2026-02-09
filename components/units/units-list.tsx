@@ -402,11 +402,12 @@ function EditUnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
+      <DialogContent className="max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b">
           <DialogTitle>Editar Unidad</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           <div>
             <Label htmlFor="name">Nombre *</Label>
             <Input
@@ -545,8 +546,8 @@ function EditUnitDialog({
               </p>
             </div>
           </div>
-          
-          <div className="flex justify-end gap-2">
+          </div>
+          <div className="flex justify-end gap-2 px-6 py-4 border-t bg-gray-50 shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
