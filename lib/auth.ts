@@ -22,7 +22,7 @@ if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,
-  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
   debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
   providers: [
