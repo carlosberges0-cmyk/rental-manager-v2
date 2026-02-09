@@ -2,6 +2,7 @@ import NextAuth, { type NextAuthConfig } from "next-auth"
 import Google from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
+import { NextResponse } from "next/server"
 
 /**
  * Auth uses Google OAuth only.
@@ -16,23 +17,53 @@ export function getBaseUrl(): string {
   return "http://localhost:3000"
 }
 
-// Asegurar NEXTAUTH_URL/AUTH_URL para Vercel (NextAuth v5 requiere URL base)
 const baseUrl = getBaseUrl()
 if (!process.env.NEXTAUTH_URL) process.env.NEXTAUTH_URL = baseUrl
 if (!process.env.AUTH_URL) process.env.AUTH_URL = baseUrl
+if (!process.env.AUTH_TRUST_HOST) process.env.AUTH_TRUST_HOST = "true"
+
+// Validar variables requeridas (evita error genérico "Configuration")
+const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+const hasSecret = !!secret && String(secret).length >= 32
+const googleId = process.env.GOOGLE_CLIENT_ID?.trim()
+const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
+const hasGoogle = !!(googleId && googleSecret)
+
+// Rutas que el cliente espera como JSON (session, csrf, etc.) - no redirigir
+const jsonPaths = ["/api/auth/session", "/api/auth/csrf", "/api/auth/providers", "/api/auth/get-session"]
+
+function fallbackHandlers() {
+  const errorUrl = new URL("/auth/error?error=Configuration", baseUrl)
+  // Session/csrf deben devolver JSON para que el cliente no falle con "Unexpected token '<'"
+  const jsonResponse = (path: string) => {
+    if (path.includes("/session")) return NextResponse.json({})
+    if (path.includes("/csrf")) return NextResponse.json({ csrfToken: "" })
+    if (path.includes("/providers")) return NextResponse.json({})
+    return NextResponse.json({ error: "Configuration" }, { status: 500 })
+  }
+  const redirect = () => NextResponse.redirect(errorUrl)
+
+  return {
+    GET: (req: Request) => {
+      const path = new URL(req.url).pathname
+      return jsonPaths.some((p) => path.startsWith(p)) ? jsonResponse(path) : redirect()
+    },
+    POST: (req: Request) => {
+      const path = new URL(req.url).pathname
+      return jsonPaths.some((p) => path.startsWith(p)) ? jsonResponse(path) : redirect()
+    },
+  }
+}
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  secret: hasSecret ? secret : undefined,
   trustHost: true,
   basePath: "/api/auth",
   debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    }),
-  ],
+  providers: hasGoogle
+    ? [Google({ clientId: googleId!, clientSecret: googleSecret! })]
+    : [],
   pages: {
     signIn: "/auth/signin",
     error: "/auth/error",
@@ -59,7 +90,8 @@ export const authOptions = {
   },
 } satisfies NextAuthConfig
 
-// Export the auth function and handlers for NextAuth v5
-const { auth, handlers, signIn, signOut } = NextAuth(authOptions)
+// Si faltan variables, usar handlers que redirigen a /auth/error (evita "Server error" genérico)
+const { auth, handlers: nextAuthHandlers, signIn, signOut } =
+  hasSecret && hasGoogle ? NextAuth(authOptions) : { auth: null, handlers: fallbackHandlers(), signIn: null, signOut: null }
 
-export { auth, handlers, signIn, signOut }
+export { auth, nextAuthHandlers as handlers, signIn, signOut }

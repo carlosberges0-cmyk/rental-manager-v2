@@ -27,9 +27,14 @@ export async function GET() {
     ok: !!(process.env.GOOGLE_CLIENT_SECRET?.trim()),
     message: process.env.GOOGLE_CLIENT_SECRET?.trim() ? "Definida" : "FALTA",
   }
+  const effectiveUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
   checks.NEXTAUTH_URL = {
-    ok: !!(process.env.NEXTAUTH_URL || process.env.AUTH_URL || process.env.VERCEL_URL),
-    message: (process.env.NEXTAUTH_URL || process.env.AUTH_URL || process.env.VERCEL_URL) ? "Definida" : "FALTA",
+    ok: !!effectiveUrl,
+    message: effectiveUrl || "FALTA",
+  }
+  checks.GOOGLE_REDIRECT_URI = {
+    ok: !!effectiveUrl,
+    message: effectiveUrl ? `${effectiveUrl.replace(/\/$/, "")}/api/auth/callback/google` : "Configurá NEXTAUTH_URL primero",
   }
   checks.VERCEL_ENV = {
     ok: true,
