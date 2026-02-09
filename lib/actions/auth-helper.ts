@@ -5,12 +5,9 @@ import { redirect } from "next/navigation"
 
 // Get the current user ID from the session
 export async function getCurrentUserId(): Promise<string> {
+  if (!auth) redirect("/auth/signin")
   const session = await auth()
-  
-  if (!session?.user?.id) {
-    redirect("/auth/signin")
-  }
-
+  if (!session?.user?.id) redirect("/auth/signin")
   return session.user.id
 }
 

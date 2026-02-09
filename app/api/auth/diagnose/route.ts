@@ -19,13 +19,15 @@ export async function GET() {
     ok: !!(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET),
     message: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET ? "Definida" : "FALTA",
   }
+  const googleId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID
+  const googleSecret = process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET
   checks.GOOGLE_CLIENT_ID = {
-    ok: !!(process.env.GOOGLE_CLIENT_ID?.trim()),
-    message: process.env.GOOGLE_CLIENT_ID?.trim() ? "Definida" : "FALTA",
+    ok: !!(googleId?.trim()),
+    message: googleId?.trim() ? "Definida" : "FALTA (AUTH_GOOGLE_ID o GOOGLE_CLIENT_ID)",
   }
   checks.GOOGLE_CLIENT_SECRET = {
-    ok: !!(process.env.GOOGLE_CLIENT_SECRET?.trim()),
-    message: process.env.GOOGLE_CLIENT_SECRET?.trim() ? "Definida" : "FALTA",
+    ok: !!(googleSecret?.trim()),
+    message: googleSecret?.trim() ? "Definida" : "FALTA (AUTH_GOOGLE_SECRET o GOOGLE_CLIENT_SECRET)",
   }
   const effectiveUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
   checks.NEXTAUTH_URL = {

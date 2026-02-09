@@ -4,6 +4,13 @@ import type { NextRequest } from "next/server"
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
+  // Redirect NextAuth error page to our custom /auth/error (with instructions)
+  if (pathname === "/api/auth/error") {
+    const error = req.nextUrl.searchParams.get("error") || "Configuration"
+    const redirectUrl = new URL(`/auth/error?error=${encodeURIComponent(error)}`, req.url)
+    return NextResponse.redirect(redirectUrl)
+  }
+
   // Allow public paths
   if (
     pathname.startsWith("/api/auth") ||
@@ -33,6 +40,8 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    // Redirect /api/auth/error to our custom error page
+    "/api/auth/error",
     /*
      * Match all request paths except for the ones starting with:
      * - api/auth (NextAuth routes)

@@ -1,11 +1,12 @@
 "use client"
 
+import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get("error") || ""
 
@@ -30,7 +31,7 @@ export default function AuthErrorPage() {
               <p className="font-semibold mb-2">Verificá estas variables en Vercel → Settings → Environment Variables:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li><strong>AUTH_SECRET</strong> o <strong>NEXTAUTH_SECRET</strong> — mínimo 32 caracteres (<code className="bg-amber-100 px-1 rounded">openssl rand -base64 32</code>)</li>
-                <li><strong>GOOGLE_CLIENT_ID</strong> y <strong>GOOGLE_CLIENT_SECRET</strong> — desde Google Cloud Console</li>
+                <li><strong>AUTH_GOOGLE_ID</strong>/<strong>GOOGLE_CLIENT_ID</strong> y <strong>AUTH_GOOGLE_SECRET</strong>/<strong>GOOGLE_CLIENT_SECRET</strong> — desde Google Cloud Console</li>
                 <li><strong>NEXTAUTH_URL</strong> — debe coincidir EXACTAMENTE con la URL que usás (ej: <code className="bg-amber-100 px-1 rounded">https://rental-manager-v2.vercel.app</code>)</li>
               </ul>
               <p className="font-semibold mt-4 mb-1">⚠️ Google Cloud Console — URI de redirección:</p>
@@ -54,5 +55,19 @@ export default function AuthErrorPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-lg">
+          <CardHeader><CardTitle>Cargando...</CardTitle></CardHeader>
+        </Card>
+      </div>
+    }>
+      <AuthErrorContent />
+    </Suspense>
   )
 }

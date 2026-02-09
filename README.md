@@ -128,7 +128,7 @@ El sistema incluye los siguientes modelos principales:
 
 ## 🔐 Autenticación
 
-El sistema usa NextAuth con autenticación por email (magic link). Los usuarios reciben un enlace por email para iniciar sesión.
+El sistema usa **NextAuth v5 (Auth.js)** con **Google OAuth**. Ver [docs/auth.md](docs/auth.md) para variables de entorno, checklist de Vercel y solución de problemas.
 
 ## 📊 Funcionalidades Principales
 
@@ -218,9 +218,12 @@ El sistema está preparado para integrar con AFIP/ARCA. Para implementar:
 ### Vercel (Recomendado)
 
 1. Conecta tu repositorio a Vercel
-2. Configura las variables de entorno en el dashboard
-3. Asegúrate de tener una base de datos PostgreSQL (Vercel Postgres, Supabase, etc.)
-4. Vercel ejecutará automáticamente `npm run build`
+2. Configura las variables de entorno (ver [docs/auth.md](docs/auth.md)):
+   - `AUTH_SECRET` o `NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+   - `NEXTAUTH_URL` = `https://tu-dominio.vercel.app`
+   - `AUTH_TRUST_HOST` = `true`, `DATABASE_URL`
+3. En Google Cloud Console: URI de redirección = `https://tu-dominio.vercel.app/api/auth/callback/google`
+4. Redeploy sin build cache tras cambiar variables
 
 ### Otras Plataformas
 
@@ -240,8 +243,9 @@ El proyecto es compatible con cualquier plataforma que soporte Next.js:
 - Asegúrate de que el usuario tenga permisos
 
 ### Error de autenticación
-- Verifica `NEXTAUTH_SECRET` y `NEXTAUTH_URL`
-- Revisa configuración de SMTP para magic links
+- Ver [docs/auth.md](docs/auth.md) para checklist completo
+- Verifica `AUTH_SECRET`/`NEXTAUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- En producción: `NEXTAUTH_URL` debe coincidir con tu dominio; URI en Google = `https://tu-dominio/api/auth/callback/google`
 
 ### Errores de Prisma
 - Ejecuta `npm run db:generate` después de cambios en schema
