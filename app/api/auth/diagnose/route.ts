@@ -19,9 +19,17 @@ export async function GET() {
     ok: !!(process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET),
     message: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET ? "Definida" : "FALTA",
   }
-  checks.EMAIL_FROM = {
-    ok: true,
-    message: process.env.EMAIL_FROM ?? "onboarding@resend.dev (default)",
+  checks.GOOGLE_CLIENT_ID = {
+    ok: !!(process.env.GOOGLE_CLIENT_ID?.trim()),
+    message: process.env.GOOGLE_CLIENT_ID?.trim() ? "Definida" : "FALTA",
+  }
+  checks.GOOGLE_CLIENT_SECRET = {
+    ok: !!(process.env.GOOGLE_CLIENT_SECRET?.trim()),
+    message: process.env.GOOGLE_CLIENT_SECRET?.trim() ? "Definida" : "FALTA",
+  }
+  checks.NEXTAUTH_URL = {
+    ok: !!(process.env.NEXTAUTH_URL || process.env.AUTH_URL || process.env.VERCEL_URL),
+    message: (process.env.NEXTAUTH_URL || process.env.AUTH_URL || process.env.VERCEL_URL) ? "Definida" : "FALTA",
   }
   checks.VERCEL_ENV = {
     ok: true,
@@ -39,24 +47,15 @@ export async function GET() {
     }
   }
 
-  // 3. Tabla VerificationToken (crear token de prueba y borrarlo)
+  // 3. Modelo Account (para Google OAuth)
   try {
-    const testId = `diagnose-${Date.now()}@test.com`
-    const testToken = `diagnose-token-${Date.now()}`
-    const expires = new Date(Date.now() + 60000)
-
-    await prisma.verificationToken.create({
-      data: { identifier: testId, token: testToken, expires },
-    })
-    await prisma.verificationToken.delete({
-      where: { identifier_token: { identifier: testId, token: testToken } },
-    })
-    checks.VERIFICATION_TOKEN = { ok: true, message: "Tabla OK, puede crear/borrar" }
-  } catch (e) {
-    checks.VERIFICATION_TOKEN = {
-      ok: false,
-      message: e instanceof Error ? e.message : String(e),
+    if (typeof (prisma as any).account !== "undefined") {
+      checks.ACCOUNT_TABLE = { ok: true, message: "Modelo Account disponible" }
+    } else {
+      checks.ACCOUNT_TABLE = { ok: false, message: "Modelo Account no disponible" }
     }
+  } catch (e) {
+    checks.ACCOUNT_TABLE = { ok: false, message: e instanceof Error ? e.message : String(e) }
   }
 
   const allOk = Object.values(checks).every((c) => c.ok)

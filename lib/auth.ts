@@ -5,25 +5,27 @@ import { prisma } from "@/lib/prisma"
 
 /**
  * Auth uses Google OAuth only.
- * Env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXTAUTH_SECRET, NEXTAUTH_URL
+ * Env: AUTH_SECRET (o NEXTAUTH_SECRET), GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXTAUTH_URL
  */
 
-/** Base URL for callbacks. NEXTAUTH_URL > VERCEL_URL > localhost. */
+/** Base URL for callbacks. NEXTAUTH_URL > AUTH_URL > VERCEL_URL > localhost. */
 export function getBaseUrl(): string {
-  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL
+  const url = process.env.NEXTAUTH_URL || process.env.AUTH_URL
+  if (url) return url.startsWith("http") ? url : `https://${url}`
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
   return "http://localhost:3000"
 }
 
-// Ensure NEXTAUTH_URL for Vercel preview/production when not set
-if (!process.env.NEXTAUTH_URL && process.env.VERCEL_URL) {
-  process.env.NEXTAUTH_URL = `https://${process.env.VERCEL_URL}`
-}
+// Asegurar NEXTAUTH_URL/AUTH_URL para Vercel (NextAuth v5 requiere URL base)
+const baseUrl = getBaseUrl()
+if (!process.env.NEXTAUTH_URL) process.env.NEXTAUTH_URL = baseUrl
+if (!process.env.AUTH_URL) process.env.AUTH_URL = baseUrl
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma) as any,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
+  basePath: "/api/auth",
   debug: process.env.NODE_ENV === "development" || process.env.VERCEL_ENV === "preview",
   providers: [
     Google({
@@ -33,6 +35,7 @@ export const authOptions = {
   ],
   pages: {
     signIn: "/auth/signin",
+    error: "/auth/error",
   },
   session: {
     strategy: "jwt",
