@@ -573,6 +573,8 @@ export function StatementsPage({
         "Neto": toNum(row.neto).toFixed(2),
         "Gastos": toNum(row.gastos).toFixed(2),
         "Neteado": toNum(row.neteado).toFixed(2),
+        "m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toFixed(2) : "",
+        "Ganancia/m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neteado != null ? (toNum(row.neteado) / Number(row.unit.metrosCuadrados)).toFixed(2) : "",
       }))
 
       // Agregar subtotales por grupo y total general
@@ -601,6 +603,8 @@ export function StatementsPage({
             "Neto": groupTotal.neto.toFixed(2),
             "Gastos": groupTotal.gastos.toFixed(2),
             "Neteado": groupTotal.neteado.toFixed(2),
+            "m²": groupTotal.m2 > 0 ? groupTotal.m2.toFixed(2) : "",
+            "Ganancia/m²": groupTotal.m2 > 0 ? (groupTotal.neteado / groupTotal.m2).toFixed(2) : "",
           })
         }
       })
@@ -624,6 +628,8 @@ export function StatementsPage({
           "Neto": totalGeneral.neto.toFixed(2),
           "Gastos": totalGeneral.gastos.toFixed(2),
           "Neteado": totalGeneral.neteado.toFixed(2),
+          "m²": totalGeneral.m2 > 0 ? totalGeneral.m2.toFixed(2) : "",
+          "Ganancia/m²": totalGeneral.m2 > 0 ? (totalGeneral.neteado / totalGeneral.m2).toFixed(2) : "",
         })
       }
 
@@ -682,6 +688,8 @@ export function StatementsPage({
         "Neto": toNum(row.neto).toFixed(2),
         "Gastos": toNum(row.gastos).toFixed(2),
         "Neteado": toNum(row.neteado).toFixed(2),
+        "m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toFixed(2) : "",
+        "Ganancia/m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neteado != null ? (toNum(row.neteado) / Number(row.unit.metrosCuadrados)).toFixed(2) : "",
       }))
 
       const annualRowsWithGroup = annualRows.map((row: any) => ({
@@ -708,6 +716,8 @@ export function StatementsPage({
             "Neto": toNum(groupTotal.neto).toFixed(2),
             "Gastos": toNum(groupTotal.gastos).toFixed(2),
             "Neteado": toNum(groupTotal.neteado).toFixed(2),
+            "m²": groupTotal.m2 > 0 ? toNum(groupTotal.m2).toFixed(2) : "",
+            "Ganancia/m²": groupTotal.m2 > 0 ? (toNum(groupTotal.neteado) / groupTotal.m2).toFixed(2) : "",
           })
         }
       })
@@ -729,6 +739,8 @@ export function StatementsPage({
           "Neto": toNum(totalGeneral.neto).toFixed(2),
           "Gastos": toNum(totalGeneral.gastos).toFixed(2),
           "Neteado": toNum(totalGeneral.neteado).toFixed(2),
+          "m²": totalGeneral.m2 > 0 ? toNum(totalGeneral.m2).toFixed(2) : "",
+          "Ganancia/m²": totalGeneral.m2 > 0 ? (toNum(totalGeneral.neteado) / totalGeneral.m2).toFixed(2) : "",
         })
       }
 
@@ -842,6 +854,8 @@ export function StatementsPage({
                   <th className="text-right p-4 font-bold">Expensas</th>
                   <th className="text-right p-4 font-bold">Neto</th>
                   <th className="text-right p-4 font-bold bg-[#4CAF50]">Neteado</th>
+                  <th className="text-right p-4 font-bold">m²</th>
+                  <th className="text-right p-4 font-bold">Ganancia/m²</th>
                   <th className="text-center p-4 font-bold">Acciones</th>
                 </tr>
               </thead>
@@ -908,6 +922,8 @@ export function StatementsPage({
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.expensas.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.neto.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.neteado.toLocaleString()}</td>
+                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
+                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? (groupTotal.neteado / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           <td></td>
                         </tr>
                       )
@@ -934,6 +950,8 @@ export function StatementsPage({
                     <td className="p-3 text-right text-gray-900">{groupTotal.expensas.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.neto.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.neteado.toLocaleString()}</td>
+                    <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
+                    <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? (groupTotal.neteado / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                     <td></td>
                   </tr>
                 ))}
@@ -967,6 +985,8 @@ export function StatementsPage({
                           <td className="p-3 text-right">{total.expensas.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.neto.toLocaleString()}</td>
                           <td className="p-3 text-right font-bold text-lg">{total.neteado.toLocaleString()}</td>
+                          <td className="p-3 text-right">{total.m2 > 0 ? total.m2.toLocaleString() : "-"}</td>
+                          <td className="p-3 text-right">{total.m2 > 0 ? (total.neteado / total.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           <td></td>
                         </>
                       )
@@ -1041,12 +1061,14 @@ export function StatementsPage({
                     <th className="text-right p-4 font-bold">Expensas</th>
                     <th className="text-right p-4 font-bold">Neto</th>
                     <th className="text-right p-4 font-bold bg-[#4CAF50]">Neteado</th>
+                    <th className="text-right p-4 font-bold">m²</th>
+                    <th className="text-right p-4 font-bold">Ganancia/m²</th>
                   </tr>
                 </thead>
                 <tbody>
                   {annualRows.length === 0 ? (
                     <tr>
-                      <td colSpan={13} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
+                      <td colSpan={15} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
                         <div className="flex flex-col items-center gap-2">
                           <svg className="h-12 w-12 text-[#4CAF50] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1103,6 +1125,8 @@ export function StatementsPage({
                             <td className="p-3 text-right text-gray-700">{toNum(row.expensas).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.neto).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.neteado).toLocaleString()}</td>
+                            <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toLocaleString() : "-"}</td>
+                            <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neteado != null ? (toNum(row.neteado) / Number(row.unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           </tr>
                         )
                       })
@@ -1126,6 +1150,8 @@ export function StatementsPage({
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.expensas).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.neto).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.neteado).toLocaleString()}</td>
+                              <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? toNum(gt.m2).toLocaleString() : "-"}</td>
+                              <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? (toNum(gt.neteado) / gt.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                             </tr>
                           )
                         }
@@ -1155,13 +1181,15 @@ export function StatementsPage({
                           <td className="p-3 text-right">{toNum(totalGeneral.expensas).toLocaleString()}</td>
                           <td className="p-3 text-right">{toNum(totalGeneral.neto).toLocaleString()}</td>
                           <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.neteado).toLocaleString()}</td>
+                          <td className="p-3 text-right">{totalGeneral.m2 > 0 ? toNum(totalGeneral.m2).toLocaleString() : "-"}</td>
+                          <td className="p-3 text-right">{totalGeneral.m2 > 0 ? (toNum(totalGeneral.neteado) / totalGeneral.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                         </tr>
                       )
                     }
 
                     return renderedRows.length > 0 ? renderedRows : (
                       <tr>
-                        <td colSpan={13} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
+                        <td colSpan={15} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
                           <div className="flex flex-col items-center gap-2">
                             <svg className="h-12 w-12 text-[#4CAF50] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

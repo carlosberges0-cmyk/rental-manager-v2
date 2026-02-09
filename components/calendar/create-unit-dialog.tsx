@@ -37,6 +37,7 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess, propertyGroups
     igRatePercent: "",
     iibbRatePercent: "",
     monthlyExpensesAmount: "",
+    metrosCuadrados: "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,6 +63,7 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess, propertyGroups
         igRatePercent: "",
         iibbRatePercent: "",
         monthlyExpensesAmount: "",
+        metrosCuadrados: "",
       })
     } catch (error: any) {
       addToast({
@@ -196,6 +198,26 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess, propertyGroups
               />
               <p className="text-xs text-gray-500 mt-2">
                 Este monto se descontará mensualmente en el balance de la unidad.
+              </p>
+            </div>
+          </div>
+
+          {/* Superficie */}
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Superficie (opcional)</h3>
+            <div>
+              <Label htmlFor="metrosCuadrados" className="text-gray-900">Metros cuadrados (m²)</Label>
+              <Input
+                id="metrosCuadrados"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={formData.metrosCuadrados}
+                onChange={(e) => setFormData({ ...formData, metrosCuadrados: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Para calcular ganancia por m² en liquidaciones y BI.
               </p>
             </div>
           </div>

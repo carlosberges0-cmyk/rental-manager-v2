@@ -8,7 +8,7 @@ import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
-type StatementClient = { period: string; unitId: string; alquiler: number; expensas?: number | null; currency?: string; unit?: { propertyGroup?: { id: string; name: string } | null } | null }
+type StatementClient = { period: string; unitId: string; alquiler: number; neteado?: number | null; expensas?: number | null; currency?: string; unit?: { name?: string; propertyGroup?: { id: string; name: string } | null; metrosCuadrados?: number | null } | null }
 
 interface BIPageProps {
   taxData: TaxDataUI
@@ -187,6 +187,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       profitability: number
       occupancyDays: number
       occupancyRate: number
+      gananciaPorM2: number
       currency: string
     }> = {}
 
@@ -205,6 +206,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         profitability: 0,
         occupancyDays: 0,
         occupancyRate: 0,
+        gananciaPorM2: 0,
         currency: selectedCurrency,
       }
     })
@@ -305,7 +307,8 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       // Para el margen: restar manualExpenses + expensas por separado (expenses es el total pero se muestra separado en la tabla)
       metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
       metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
-      
+      const m2 = metric.unit.metrosCuadrados != null ? Number(metric.unit.metrosCuadrados) : 0
+      metric.gananciaPorM2 = m2 > 0 ? metric.margin / m2 : 0
       metric.occupancyRate = 365 > 0 ? (metric.occupancyDays / 365) * 100 : 0
     })
 
@@ -362,6 +365,44 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     rows.push({ name: "Total General", Margen: ytdMargin })
     return rows
   }, [groupMetrics, ytdMargin])
+
+  // Ganancia/m² por unidad (solo unidades con m2 cargado)
+  const gananciaPorM2ChartData = useMemo(() => {
+    return unitMetrics
+      .filter(m => m.unit.metrosCuadrados != null && Number(m.unit.metrosCuadrados) > 0)
+      .map(m => ({ name: m.unit.name, "Ganancia/m²": Math.round(m.gananciaPorM2) }))
+      .sort((a, b) => b["Ganancia/m²"] - a["Ganancia/m²"])
+  }, [unitMetrics])
+
+  // Evolución ganancia/m² por mes (por unidad con m2)
+  const evolucionGananciaM2Data = useMemo(() => {
+    const stmts = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => !s.currency || s.currency === selectedCurrency
+    )
+    const months = eachMonthOfInterval({
+      start: startOfYear(new Date(selectedYear, 0, 1)),
+      end: endOfYear(new Date(selectedYear, 11, 31)),
+    })
+    const unitsWithM2 = units.filter(u => u.metrosCuadrados != null && Number(u.metrosCuadrados) > 0)
+    if (unitsWithM2.length === 0) return []
+
+    const byMonth: Record<string, Record<string, number | string>> = {}
+    months.forEach(m => {
+      const key = format(m, "yyyy-MM")
+      byMonth[key] = { month: format(m, "MMM") }
+      unitsWithM2.forEach(u => { byMonth[key][u.name] = 0 })
+    })
+    stmts.forEach((s: StatementClient) => {
+      const m2 = s.unit?.metrosCuadrados != null ? Number(s.unit.metrosCuadrados) : 0
+      if (m2 <= 0 || !s.period) return
+      const neteado = s.neteado != null ? Number(s.neteado) : 0
+      const unitName = s.unit?.name || units.find(u => u.id === s.unitId)?.name || ""
+      if (!unitName || !byMonth[s.period]) return
+      const prev = byMonth[s.period][unitName]
+      byMonth[s.period][unitName] = (typeof prev === "number" ? prev : 0) + (neteado / m2)
+    })
+    return Object.values(byMonth)
+  }, [statementsByYear, selectedYear, selectedCurrency, units])
 
   return (
     <div className="container mx-auto p-6 bg-white min-h-screen">
@@ -466,6 +507,56 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         </Card>
       )}
 
+      {/* Ganancia por m² - comparación entre unidades */}
+      {gananciaPorM2ChartData.length > 0 && (
+        <Card className="border border-gray-200 mb-6">
+          <CardHeader className="bg-white border-b border-gray-200">
+            <CardTitle className="text-gray-900">Ganancia por m² por Unidad ({selectedYear})</CardTitle>
+            <CardDescription className="text-gray-600">Comparación: qué unidades generan más ganancia por metro cuadrado (ordenadas de mayor a menor)</CardDescription>
+          </CardHeader>
+          <CardContent className="bg-white">
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={gananciaPorM2ChartData} layout="vertical" margin={{ left: 20, right: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis type="number" stroke="#6b7280" />
+                <YAxis type="category" dataKey="name" width={120} stroke="#6b7280" />
+                <Tooltip formatter={(v: number | undefined) => [v != null ? v.toLocaleString() + " " + selectedCurrency + "/m²" : "0", "Ganancia/m²"]} />
+                <Bar dataKey="Ganancia/m²" fill="#2E7D32" name="Ganancia/m²" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Evolución ganancia/m² en el tiempo */}
+      {evolucionGananciaM2Data.length > 0 && (() => {
+        const unitNames = Object.keys(evolucionGananciaM2Data[0] || {}).filter(k => k !== "month")
+        if (unitNames.length === 0) return null
+        const colors = ["#1B5E20", "#2E7D32", "#4CAF50", "#66BB6A", "#81C784"]
+        return (
+          <Card className="border border-gray-200 mb-6">
+            <CardHeader className="bg-white border-b border-gray-200">
+              <CardTitle className="text-gray-900">Evolución Ganancia/m² por Mes ({selectedYear})</CardTitle>
+              <CardDescription className="text-gray-600">Cómo evoluciona la ganancia por m² de cada unidad a lo largo del año</CardDescription>
+            </CardHeader>
+            <CardContent className="bg-white">
+              <ResponsiveContainer width="100%" height={350}>
+                <LineChart data={evolucionGananciaM2Data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="month" stroke="#6b7280" />
+                  <YAxis stroke="#6b7280" tickFormatter={(v) => v.toLocaleString()} />
+                  <Tooltip formatter={(v: number | undefined) => [v != null ? Math.round(v).toLocaleString() + " " + selectedCurrency + "/m²" : "0", ""]} />
+                  <Legend />
+                  {unitNames.slice(0, 8).map((name, i) => (
+                    <Line key={name} type="monotone" dataKey={name} stroke={colors[i % colors.length]} strokeWidth={2} dot={{ r: 3 }} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )
+      })()}
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card className="border border-gray-200">
@@ -545,6 +636,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Expensas</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Impuestos</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Margen</th>
+                  <th className="text-right p-4 font-semibold text-[#1B5E20]">Ganancia/m²</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Rentabilidad</th>
                   <th className="text-right p-4 font-semibold text-[#1B5E20]">Ocupación</th>
                 </tr>
@@ -571,6 +663,11 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                     </td>
                     <td className={`p-4 text-right font-semibold ${metric.margin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {metric.margin.toLocaleString()} {selectedCurrency}
+                    </td>
+                    <td className="p-4 text-right text-gray-600">
+                      {metric.unit.metrosCuadrados != null && Number(metric.unit.metrosCuadrados) > 0
+                        ? metric.gananciaPorM2.toLocaleString(undefined, { maximumFractionDigits: 0 }) + " " + selectedCurrency + "/m²"
+                        : "-"}
                     </td>
                     <td className={`p-4 text-right font-semibold ${metric.profitability >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {metric.profitability.toFixed(1)}%

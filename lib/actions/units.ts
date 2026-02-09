@@ -66,6 +66,7 @@ const unitSchema = z.object({
   iibbRatePercent: z.union([z.number(), z.string(), z.null()]).optional(),
   igRatePercent: z.union([z.number(), z.string(), z.null()]).optional(),
   monthlyExpensesAmount: z.union([z.number(), z.string(), z.null()]).optional(),
+  metrosCuadrados: z.union([z.number(), z.string(), z.null()]).optional(),
 })
 
 export async function createUnit(data: z.infer<typeof unitSchema>) {
@@ -100,6 +101,9 @@ export async function createUnit(data: z.infer<typeof unitSchema>) {
       monthlyExpensesAmount: validated.monthlyExpensesAmount && validated.monthlyExpensesAmount !== ""
         ? (typeof validated.monthlyExpensesAmount === "string" ? parseFloat(validated.monthlyExpensesAmount) : validated.monthlyExpensesAmount)
         : null,
+      metrosCuadrados: validated.metrosCuadrados != null && validated.metrosCuadrados !== ""
+        ? (typeof validated.metrosCuadrados === "string" ? parseFloat(validated.metrosCuadrados) : validated.metrosCuadrados)
+        : null,
       userId,
     },
   })
@@ -122,6 +126,7 @@ export async function createUnit(data: z.infer<typeof unitSchema>) {
     igRatePercent: decimalToNumber(unit.igRatePercent),
     iibbRatePercent: decimalToNumber(unit.iibbRatePercent),
     monthlyExpensesAmount: decimalToNumber(unit.monthlyExpensesAmount),
+    metrosCuadrados: decimalToNumber((unit as any).metrosCuadrados),
     createdAt: unit.createdAt,
     updatedAt: unit.updatedAt,
   }
@@ -157,6 +162,7 @@ export async function updateUnit(id: string, data: z.infer<typeof unitSchema>) {
       igRatePercent: number | null
       iibbRatePercent: number | null
       monthlyExpensesAmount: number | null
+      metrosCuadrados: number | null
     } = {
       name: validated.name,
       address: validated.address || null,
@@ -170,6 +176,7 @@ export async function updateUnit(id: string, data: z.infer<typeof unitSchema>) {
       igRatePercent: parsePercentage(validated.igRatePercent),
       iibbRatePercent: parsePercentage(validated.iibbRatePercent),
       monthlyExpensesAmount: parsePercentage(validated.monthlyExpensesAmount),
+      metrosCuadrados: parsePercentage(validated.metrosCuadrados),
     }
     
     // Try to update, but if some fields don't exist in DB yet, remove them
@@ -182,7 +189,7 @@ export async function updateUnit(id: string, data: z.infer<typeof unitSchema>) {
     } catch (error: any) {
       // If error is about fields not existing, try with only basic fields
       const errorMessage = error.message || error.toString() || ''
-      const missingFields = ['monthlyExpensesAmount', 'aplicaIvaAlquiler', 'aplicaIibbRetencion', 'owner', 'propertyGroupId']
+      const missingFields = ['monthlyExpensesAmount', 'metrosCuadrados', 'aplicaIvaAlquiler', 'aplicaIibbRetencion', 'owner', 'propertyGroupId']
       const hasMissingField = missingFields.some(field => errorMessage.includes(field))
       
       if (hasMissingField) {
@@ -244,6 +251,7 @@ export async function updateUnit(id: string, data: z.infer<typeof unitSchema>) {
       igRatePercent: decimalToNumber(unit.igRatePercent),
       iibbRatePercent: decimalToNumber(unit.iibbRatePercent),
       monthlyExpensesAmount: decimalToNumber((unit as any).monthlyExpensesAmount),
+      metrosCuadrados: decimalToNumber((unit as any).metrosCuadrados),
       createdAt: unit.createdAt,
       updatedAt: unit.updatedAt,
     }
@@ -385,6 +393,7 @@ export async function getUnits() {
         igRatePercent: forceToNumber(unit.igRatePercent),
         iibbRatePercent: forceToNumber(unit.iibbRatePercent),
         monthlyExpensesAmount: forceToNumber(unit.monthlyExpensesAmount),
+        metrosCuadrados: forceToNumber((unit as any).metrosCuadrados),
         createdAt: unit.createdAt instanceof Date ? unit.createdAt.toISOString() : String(unit.createdAt || ''),
         updatedAt: unit.updatedAt instanceof Date ? unit.updatedAt.toISOString() : String(unit.updatedAt || ''),
       }
@@ -463,6 +472,7 @@ export async function getUnit(id: string) {
     igRatePercent: decimalToNumber(unit.igRatePercent),
     iibbRatePercent: decimalToNumber(unit.iibbRatePercent),
     monthlyExpensesAmount: decimalToNumber(unit.monthlyExpensesAmount),
+    metrosCuadrados: decimalToNumber((unit as any).metrosCuadrados),
     createdAt: unit.createdAt,
     updatedAt: unit.updatedAt,
   }

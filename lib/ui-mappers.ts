@@ -62,6 +62,7 @@ export function toUnitUI(u: unknown): UnitUI | null {
     igRatePercent: toNum(ui.igRatePercent),
     iibbRatePercent: toNum(ui.iibbRatePercent),
     monthlyExpensesAmount: toNum(ui.monthlyExpensesAmount),
+    metrosCuadrados: toNum(ui.metrosCuadrados),
     createdAt: ui.createdAt != null ? (ui.createdAt instanceof Date ? ui.createdAt.toISOString() : toStr(ui.createdAt)) : null,
     updatedAt: ui.updatedAt != null ? (ui.updatedAt instanceof Date ? ui.updatedAt.toISOString() : toStr(ui.updatedAt)) : null,
   }

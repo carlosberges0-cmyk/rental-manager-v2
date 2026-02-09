@@ -95,6 +95,7 @@ model Unit {
   iibbRatePercent Decimal?       @db.Decimal(5, 2) // IIBB (Ingresos Brutos) percentage (ej: 0.035 = 3.5%)
   igRatePercent  Decimal?        @db.Decimal(5, 2) // IG (Impuesto a las Ganancias) percentage
   monthlyExpensesAmount Decimal? @db.Decimal(10, 2) // Monto mensual de expensas
+  metrosCuadrados      Decimal? @db.Decimal(8, 2)   // Superficie en m² (para ganancia/m²)
   rentalPeriods RentalPeriod[]
   expenses      MonthlyExpense[]
   invoices      Invoice[]

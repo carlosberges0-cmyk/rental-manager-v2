@@ -544,6 +544,7 @@ function convertStatementToClient(statement: any) {
     igRatePercent: decimalToNumber(statement.unit.igRatePercent),
     iibbRatePercent: decimalToNumber(statement.unit.iibbRatePercent),
     monthlyExpensesAmount: decimalToNumber(statement.unit.monthlyExpensesAmount),
+    metrosCuadrados: decimalToNumber((statement.unit as any).metrosCuadrados),
     createdAt: statement.unit.createdAt instanceof Date 
       ? statement.unit.createdAt.toISOString() 
       : String(statement.unit.createdAt || ''),

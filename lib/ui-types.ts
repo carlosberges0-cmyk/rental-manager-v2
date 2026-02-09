@@ -24,6 +24,7 @@ export type UnitUI = {
   igRatePercent: number | null
   iibbRatePercent: number | null
   monthlyExpensesAmount: number | null
+  metrosCuadrados: number | null
   createdAt: string | null
   updatedAt: string | null
 }

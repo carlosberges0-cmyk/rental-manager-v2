@@ -120,6 +120,7 @@ export interface GroupTotals {
   neto: number
   gastos: number
   neteado: number
+  m2: number // Suma de m² de las unidades del grupo
   count: number // Cantidad de unidades en el grupo
 }
 
@@ -151,6 +152,7 @@ export function aggregateByGroup(
     neto: 0,
     gastos: 0,
     neteado: 0,
+    m2: 0,
     count: 0,
   })
 
@@ -174,6 +176,7 @@ export function aggregateByGroup(
         neto: 0,
         gastos: 0,
         neteado: 0,
+        m2: 0,
         count: 0,
       })
     }
@@ -191,6 +194,7 @@ export function aggregateByGroup(
     const neto = Number(statement.neto || 0)
     const gastos = Number(statement.gastos || 0)
     const neteado = Number(statement.neteado || 0)
+    const m2 = Number((statement.unit as any)?.metrosCuadrados || 0)
 
     // Agregar al grupo específico
     group.alquiler += alquiler
@@ -205,6 +209,7 @@ export function aggregateByGroup(
     group.neto += neto
     group.gastos += gastos
     group.neteado += neteado
+    group.m2 += m2
     group.count += 1
 
     // También agregar al total general (solo si no es el total general mismo)
@@ -222,6 +227,7 @@ export function aggregateByGroup(
       totalGeneral.neto += neto
       totalGeneral.gastos += gastos
       totalGeneral.neteado += neteado
+      totalGeneral.m2 += m2
       totalGeneral.count += 1
     }
   })
@@ -241,6 +247,7 @@ export function aggregateByGroup(
     neto: roundTo2Decimals(group.neto),
     gastos: roundTo2Decimals(group.gastos),
     neteado: roundTo2Decimals(group.neteado),
+    m2: roundTo2Decimals(group.m2),
   }))
 
   // Ordenar: primero grupos específicos, luego total general

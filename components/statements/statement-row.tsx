@@ -225,6 +225,8 @@ export function StatementRow({
         <td className="p-3 text-right text-gray-900 font-semibold">
           {computed.neteado.toLocaleString()}
         </td>
+        <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados ? Number(unit.metrosCuadrados).toLocaleString() : "-"}</td>
+        <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados && Number(unit.metrosCuadrados) > 0 ? (computed.neteado / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
         <td className="p-3">
           <div className="flex gap-2 justify-center">
             <Button
@@ -375,6 +377,8 @@ export function StatementRow({
       </td>
       <td className="p-3 text-right text-gray-700 font-medium">{row.neto?.toLocaleString() || "0"}</td>
       <td className="p-3 text-right text-gray-900 font-semibold">{row.neteado?.toLocaleString() || "0"}</td>
+      <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados != null && Number(unit.metrosCuadrados) > 0 ? Number(unit.metrosCuadrados).toLocaleString() : "-"}</td>
+      <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados != null && Number(unit.metrosCuadrados) > 0 && row.neteado != null ? (Number(row.neteado) / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
       <td className="p-3">
         <Button
           size="sm"

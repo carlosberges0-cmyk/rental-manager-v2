@@ -46,7 +46,7 @@ export function UnitsList({ initialUnits, initialPropertyGroups = [] }: UnitsLis
     }
   }
 
-  type UnitUpdateData = { name: string; address?: string; type?: "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"; propertyGroupId?: string; notes?: string; ivaRatePercent?: string; igRatePercent?: string; iibbRatePercent?: string; monthlyExpensesAmount?: string }
+  type UnitUpdateData = { name: string; address?: string; type?: "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"; propertyGroupId?: string; notes?: string; ivaRatePercent?: string; igRatePercent?: string; iibbRatePercent?: string; monthlyExpensesAmount?: string; metrosCuadrados?: string }
   const handleUpdate = async (unit: UnitUI, data: UnitUpdateData) => {
     try {
       const updateData = {
@@ -59,6 +59,7 @@ export function UnitsList({ initialUnits, initialPropertyGroups = [] }: UnitsLis
         igRatePercent: data.igRatePercent || "",
         iibbRatePercent: data.iibbRatePercent || "",
         monthlyExpensesAmount: data.monthlyExpensesAmount || "",
+        metrosCuadrados: data.metrosCuadrados || "",
       }
       
       const updated = await updateUnit(unit.id, updateData)
@@ -374,7 +375,7 @@ function EditUnitDialog({
   unit: UnitUI
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (data: { name: string; address?: string; type: "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"; propertyGroupId?: string; notes?: string; ivaRatePercent?: string; igRatePercent?: string; iibbRatePercent?: string; monthlyExpensesAmount?: string }) => void
+  onSave: (data: { name: string; address?: string; type: "DEPTO" | "CASA" | "COCHERA" | "VIVIENDA" | "LOCAL_COMERCIAL" | "OTRO"; propertyGroupId?: string; notes?: string; ivaRatePercent?: string; igRatePercent?: string; iibbRatePercent?: string; monthlyExpensesAmount?: string; metrosCuadrados?: string }) => void
   propertyGroups?: any[]
 }) {
   const [loading, setLoading] = useState(false)
@@ -389,6 +390,7 @@ function EditUnitDialog({
     igRatePercent: unit.igRatePercent ? Number(unit.igRatePercent).toString() : "",
     iibbRatePercent: unit.iibbRatePercent ? Number(unit.iibbRatePercent).toString() : "",
     monthlyExpensesAmount: unit.monthlyExpensesAmount ? Number(unit.monthlyExpensesAmount).toString() : "",
+    metrosCuadrados: unit.metrosCuadrados != null ? Number(unit.metrosCuadrados).toString() : "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -520,6 +522,26 @@ function EditUnitDialog({
               />
               <p className="text-xs text-gray-500 mt-2">
                 Este monto se descontará mensualmente en el balance de la unidad.
+              </p>
+            </div>
+          </div>
+
+          {/* Superficie */}
+          <div className="border-t pt-4">
+            <h3 className="font-semibold text-gray-900 mb-3">Superficie (opcional)</h3>
+            <div>
+              <Label htmlFor="metrosCuadrados" className="text-gray-900">Metros cuadrados (m²)</Label>
+              <Input
+                id="metrosCuadrados"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0"
+                value={formData.metrosCuadrados}
+                onChange={(e) => setFormData({ ...formData, metrosCuadrados: e.target.value })}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Para calcular ganancia por m² en liquidaciones y BI.
               </p>
             </div>
           </div>
