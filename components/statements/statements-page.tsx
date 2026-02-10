@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { useToast } from "@/components/ui/toast"
-import { format, parse, startOfMonth, endOfMonth, startOfYear, endOfYear, eachMonthOfInterval } from "date-fns"
+import { format, parse, startOfMonth, endOfMonth, startOfYear, endOfYear, eachMonthOfInterval, subMonths } from "date-fns"
 import { aggregateByGroup, computeStatement } from "@/lib/services/statement-calculator"
 import { upsertStatement, getStatements } from "@/lib/actions/statements"
 import { getExpenses } from "@/lib/actions/expenses"
@@ -38,6 +38,7 @@ export function StatementsPage({
   const [period, setPeriod] = useState(initialPeriod)
   const [selectedYear, setSelectedYear] = useState(() => parse(initialPeriod, "yyyy-MM", new Date()).getFullYear())
   const [statements, setStatements] = useState(initialStatements)
+  const [prevMonthStatements, setPrevMonthStatements] = useState<any[]>([])
   const [editingRow, setEditingRow] = useState<string | null>(null)
   const [annualData, setAnnualData] = useState<any[]>([])
   const [annualRows, setAnnualRows] = useState<any[]>([])
@@ -64,6 +65,21 @@ export function StatementsPage({
   // Un solo período: gastos del mes = mismo mes que la liquidación
   useEffect(() => {
     setExpenseFilterMonth(period)
+  }, [period])
+
+  // Cargar statements del mes anterior para pre-cargar datos (base para mes nuevo)
+  useEffect(() => {
+    const loadPrevMonth = async () => {
+      try {
+        const periodDate = parse(period, "yyyy-MM", new Date())
+        const prevPeriod = format(subMonths(periodDate, 1), "yyyy-MM")
+        const prev = await getStatements(prevPeriod)
+        setPrevMonthStatements(prev || [])
+      } catch {
+        setPrevMonthStatements([])
+      }
+    }
+    loadPrevMonth()
   }, [period])
 
   // Cargar datos anuales (statements + gastos del año)
@@ -197,16 +213,17 @@ export function StatementsPage({
           if ((r.otrosTotal || 0) === 0) r.otrosTotal = otrosFromStmt.get(u) || 0
         })
 
-        // 4. Gastos para neteado = OSSE + TSU + INMOB + OBRAS + otros
+        // 4. Gastos = OSSE + TSU + INMOB + OBRAS + otros; Total gastos incluye Expensas
         resultados.forEach((r) => {
           r.gastos = (r.osse || 0) + (r.tsu || 0) + (r.inmob || 0) + (r.obras || 0) + (r.otrosTotal || 0)
+          r.totalGastos = r.gastos + (r.expensas || 0)
         })
 
-        // 5. Total anual, neto, neteado (TOTAL_MES = Alquiler+IVA+paidByTenantIncome, NETO = TOTAL_MES - Expensas, NETEADO = NETO - Gastos)
+        // 5. Total anual, neto (TOTAL_MES = Alquiler+IVA+paidByTenantIncome, NETO = TOTAL_MES - Total gastos)
         resultados.forEach((r) => {
           r.totalMes = (r.alquiler || 0) + (r.ivaAlquiler || 0) + (r.paidByTenantIncome || 0)
-          r.neto = r.totalMes - (r.expensas || 0)
-          r.neteado = r.neto - r.gastos
+          r.neto = r.totalMes - r.totalGastos
+          r.neteado = r.neto
         })
 
         // 6. Unidades con datos: al menos un statement O solo gastos (Obras/Otros)
@@ -332,6 +349,7 @@ export function StatementsPage({
         expensas: finalExpensas > 0 ? finalExpensas : stmt.expensas,
         ivaAlquiler: computed.ivaAlquiler,
         totalMes: computed.totalMes,
+        totalGastos: computed.totalGastos,
         neto: computed.neto,
         gastos: computed.gastos,
         neteado: computed.neteado,
@@ -339,32 +357,50 @@ export function StatementsPage({
       })
     })
 
-    // Agregar unidades sin statement
+    // Agregar unidades sin statement: pre-cargar con datos del mes anterior si existen
+    const prevByUnit = new Map<string, any>()
+    prevMonthStatements.forEach((p: any) => {
+      prevByUnit.set(p.unitId, p)
+    })
+
     activeUnits.forEach(unit => {
       if (!rowsMap.has(unit.id)) {
+        const prevStmt = prevByUnit.get(unit.id)
         const activePeriod = rentalPeriods.find(rp => 
           rp.unitId === unit.id &&
           rp.status === "ACTIVE"
         )
 
-        const alquiler = activePeriod ? (typeof activePeriod.priceAmount === 'number' ? activePeriod.priceAmount : Number(activePeriod.priceAmount) || 0) : 0
+        // Prioridad: 1) período activo, 2) mes anterior, 3) 0
+        const alquiler = activePeriod
+          ? (typeof activePeriod.priceAmount === 'number' ? activePeriod.priceAmount : Number(activePeriod.priceAmount) || 0)
+          : (prevStmt?.alquiler != null ? Number(prevStmt.alquiler) : 0)
         
-        // Expensas vienen del campo monthlyExpensesAmount de la unidad (ya no hay categoría EXPENSAS)
-        const expensas = unit.monthlyExpensesAmount ? Number(unit.monthlyExpensesAmount) : null
+        // Expensas: unidad, mes anterior, o null
+        const expensas = unit.monthlyExpensesAmount
+          ? Number(unit.monthlyExpensesAmount)
+          : (prevStmt?.expensas != null ? Number(prevStmt.expensas) : null)
         
         // Sumar gastos del período mensual para esta unidad
         const unitExpenses = periodExpenses.filter((e: any) => e.unitId === unit.id)
-        const osse = unitExpenses.filter((e: any) => e.category === 'OSSE').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
-        const inmob = unitExpenses.filter((e: any) => e.category === 'INMOB').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
-        const tsu = unitExpenses.filter((e: any) => e.category === 'TSU').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
-        const obras = unitExpenses.filter((e: any) => e.category === 'OBRAS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
-        const otrosTotal = unitExpenses.filter((e: any) => e.category === 'OTROS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        let osse = unitExpenses.filter((e: any) => e.category === 'OSSE').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        let inmob = unitExpenses.filter((e: any) => e.category === 'INMOB').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        let tsu = unitExpenses.filter((e: any) => e.category === 'TSU').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        let obras = unitExpenses.filter((e: any) => e.category === 'OBRAS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        let otrosTotal = unitExpenses.filter((e: any) => e.category === 'OTROS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        // Si no hay gastos del período, usar valores del mes anterior
+        if (!osse && prevStmt?.osse != null) osse = Number(prevStmt.osse)
+        if (!inmob && prevStmt?.inmob != null) inmob = Number(prevStmt.inmob)
+        if (!tsu && prevStmt?.tsu != null) tsu = Number(prevStmt.tsu)
+        if (!obras && prevStmt?.obras != null) obras = Number(prevStmt.obras)
+        if (!otrosTotal && prevStmt?.otrosTotal != null) otrosTotal = Number(prevStmt.otrosTotal)
         const paidByTenantIncome = unitExpenses
           .filter((e: any) => (e.category === 'TSU' || e.category === 'INMOB' || e.category === 'OBRAS') && e.paidByTenant)
           .reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0)
         
         const aplicaIvaAlquiler = unit.aplicaIvaAlquiler ?? false
         const ivaRate = unit.ivaRatePercent ? unit.ivaRatePercent / 100 : 0.21
+        const ivaFromPrev = prevStmt?.ivaAlquiler != null ? Number(prevStmt.ivaAlquiler) : undefined
         
         const computed = computeStatement({
           alquiler,
@@ -374,7 +410,7 @@ export function StatementsPage({
           obras: obras && obras > 0 ? obras : undefined,
           otrosTotal: otrosTotal && otrosTotal > 0 ? otrosTotal : undefined,
           paidByTenantIncome: paidByTenantIncome > 0 ? paidByTenantIncome : undefined,
-          iva: undefined,
+          iva: ivaFromPrev,
           expensas: expensas || undefined,
           aplicaIvaAlquiler,
           ivaRate,
@@ -385,8 +421,8 @@ export function StatementsPage({
           period,
           unitId: unit.id,
           unit: unit,
-          tenantId: activePeriod?.tenantId || null,
-          tenant: activePeriod?.tenant || null,
+          tenantId: activePeriod?.tenantId || prevStmt?.tenantId || null,
+          tenant: activePeriod?.tenant || prevStmt?.tenant || null,
           alquiler,
           osse: osse && osse > 0 ? osse : null,
           inmob: inmob && inmob > 0 ? inmob : null,
@@ -396,10 +432,11 @@ export function StatementsPage({
           expensas,
           ivaAlquiler: computed.ivaAlquiler,
           totalMes: computed.totalMes,
+          totalGastos: computed.totalGastos,
           neto: computed.neto,
           gastos: computed.gastos,
           neteado: computed.neteado,
-          currency: activePeriod?.currency || "ARS",
+          currency: activePeriod?.currency || prevStmt?.currency || "ARS",
           isNew: true,
         })
       }
@@ -414,7 +451,7 @@ export function StatementsPage({
       }
       return (a.unit?.name || "").localeCompare(b.unit?.name || "")
     })
-  }, [statements, activeUnits, rentalPeriods, period, periodExpenses])
+  }, [statements, activeUnits, rentalPeriods, period, periodExpenses, prevMonthStatements])
 
   // Calcular subtotales por grupo
   const groupTotals = useMemo(() => {
@@ -568,25 +605,27 @@ export function StatementsPage({
         return 0
       }
 
-      const data = rows.map((row: any) => ({
-        "Propietario/Grupo": getGroupName(row),
-        "Propietario": row.unit?.owner || "",
-        "Unidad": row.unit?.name || "",
-        "Alquiler": toNum(row.alquiler).toFixed(2),
-        "OSSE": toNum(row.osse).toFixed(2),
-        "Inmob": toNum(row.inmob).toFixed(2),
-        "TSU": toNum(row.tsu).toFixed(2),
-        "Obras": toNum(row.obras).toFixed(2),
-        "Otros": toNum(row.otrosTotal).toFixed(2),
-        "IVA": toNum(row.ivaAlquiler).toFixed(2),
-        "Total del mes": toNum(row.totalMes).toFixed(2),
-        "Expensas": toNum(row.expensas).toFixed(2),
-        "Neto": toNum(row.neto).toFixed(2),
-        "Gastos": toNum(row.gastos).toFixed(2),
-        "Neteado": toNum(row.neteado).toFixed(2),
-        "m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toFixed(2) : "",
-        "Ganancia/m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neteado != null ? (toNum(row.neteado) / Number(row.unit.metrosCuadrados)).toFixed(2) : "",
-      }))
+      const data = rows.map((row: any) => {
+        const totalGastos = row.totalGastos ?? (toNum(row.osse) + toNum(row.inmob) + toNum(row.tsu) + toNum(row.expensas) + toNum(row.obras) + toNum(row.otrosTotal))
+        const neto = row.neto ?? (toNum(row.totalMes) - totalGastos)
+        const m2 = row.unit?.metrosCuadrados != null ? Number(row.unit.metrosCuadrados) : 0
+        return {
+          "Propietario/Grupo": getGroupName(row),
+          "Propietario": row.unit?.owner || "",
+          "Unidad": row.unit?.name || "",
+          "Alquiler": toNum(row.totalMes).toFixed(2),
+          "OSSE": toNum(row.osse).toFixed(2),
+          "Inmob": toNum(row.inmob).toFixed(2),
+          "TSU": toNum(row.tsu).toFixed(2),
+          "Expensas": toNum(row.expensas).toFixed(2),
+          "Obras": toNum(row.obras).toFixed(2),
+          "Otros": toNum(row.otrosTotal).toFixed(2),
+          "Total gastos": totalGastos.toFixed(2),
+          "NETO": neto.toFixed(2),
+          "m²": m2 > 0 ? m2.toFixed(2) : "",
+          "Ganancia/m²": m2 > 0 && neto != null ? (neto / m2).toFixed(2) : "",
+        }
+      })
 
       // Agregar subtotales por grupo y total general
       // Primero agregar groupId y groupName a cada row
@@ -598,24 +637,22 @@ export function StatementsPage({
       const exportGroupTotals = aggregateByGroup(rowsWithGroup)
       exportGroupTotals.forEach((groupTotal: any) => {
         if (groupTotal.groupId !== null) {
+          const tg = groupTotal.totalGastos ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal)
           data.push({
             "Propietario/Grupo": `Subtotal ${groupTotal.groupName}`,
             "Propietario": "",
             "Unidad": "",
-            "Alquiler": groupTotal.alquiler.toFixed(2),
+            "Alquiler": groupTotal.totalMes.toFixed(2),
             "OSSE": groupTotal.osse.toFixed(2),
             "Inmob": groupTotal.inmob.toFixed(2),
             "TSU": groupTotal.tsu.toFixed(2),
+            "Expensas": groupTotal.expensas.toFixed(2),
             "Obras": groupTotal.obras.toFixed(2),
             "Otros": groupTotal.otrosTotal.toFixed(2),
-            "IVA": groupTotal.ivaAlquiler.toFixed(2),
-            "Total del mes": groupTotal.totalMes.toFixed(2),
-            "Expensas": groupTotal.expensas.toFixed(2),
-            "Neto": groupTotal.neto.toFixed(2),
-            "Gastos": groupTotal.gastos.toFixed(2),
-            "Neteado": groupTotal.neteado.toFixed(2),
+            "Total gastos": tg.toFixed(2),
+            "NETO": groupTotal.neto.toFixed(2),
             "m²": groupTotal.m2 > 0 ? groupTotal.m2.toFixed(2) : "",
-            "Ganancia/m²": groupTotal.m2 > 0 ? (groupTotal.neteado / groupTotal.m2).toFixed(2) : "",
+            "Ganancia/m²": groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toFixed(2) : "",
           })
         }
       })
@@ -623,24 +660,22 @@ export function StatementsPage({
       // Agregar total general
       const totalGeneral = exportGroupTotals.find((gt: any) => gt.groupId === null)
       if (totalGeneral) {
+        const tg = totalGeneral.totalGastos ?? (totalGeneral.osse + totalGeneral.inmob + totalGeneral.tsu + totalGeneral.expensas + totalGeneral.obras + totalGeneral.otrosTotal)
         data.push({
           "Propietario/Grupo": "TOTAL GENERAL",
           "Propietario": "",
           "Unidad": "",
-          "Alquiler": totalGeneral.alquiler.toFixed(2),
+          "Alquiler": totalGeneral.totalMes.toFixed(2),
           "OSSE": totalGeneral.osse.toFixed(2),
           "Inmob": totalGeneral.inmob.toFixed(2),
           "TSU": totalGeneral.tsu.toFixed(2),
+          "Expensas": totalGeneral.expensas.toFixed(2),
           "Obras": totalGeneral.obras.toFixed(2),
           "Otros": totalGeneral.otrosTotal.toFixed(2),
-          "IVA": totalGeneral.ivaAlquiler.toFixed(2),
-          "Total del mes": totalGeneral.totalMes.toFixed(2),
-          "Expensas": totalGeneral.expensas.toFixed(2),
-          "Neto": totalGeneral.neto.toFixed(2),
-          "Gastos": totalGeneral.gastos.toFixed(2),
-          "Neteado": totalGeneral.neteado.toFixed(2),
+          "Total gastos": tg.toFixed(2),
+          "NETO": totalGeneral.neto.toFixed(2),
           "m²": totalGeneral.m2 > 0 ? totalGeneral.m2.toFixed(2) : "",
-          "Ganancia/m²": totalGeneral.m2 > 0 ? (totalGeneral.neteado / totalGeneral.m2).toFixed(2) : "",
+          "Ganancia/m²": totalGeneral.m2 > 0 ? (totalGeneral.neto / totalGeneral.m2).toFixed(2) : "",
         })
       }
 
@@ -684,24 +719,26 @@ export function StatementsPage({
         return 0
       }
 
-      const data = annualRows.map((row: any) => ({
-        "Propietario/Grupo": getGroupName(row),
-        "Unidad": row.unit?.name || "",
-        "Alquiler": toNum(row.alquiler).toFixed(2),
-        "OSSE": toNum(row.osse).toFixed(2),
-        "Inmob": toNum(row.inmob).toFixed(2),
-        "TSU": toNum(row.tsu).toFixed(2),
-        "Obras": toNum(row.obras).toFixed(2),
-        "Otros": toNum(row.otrosTotal).toFixed(2),
-        "IVA": toNum(row.ivaAlquiler).toFixed(2),
-        "Total del año": toNum(row.totalMes).toFixed(2),
-        "Expensas": toNum(row.expensas).toFixed(2),
-        "Neto": toNum(row.neto).toFixed(2),
-        "Gastos": toNum(row.gastos).toFixed(2),
-        "Neteado": toNum(row.neteado).toFixed(2),
-        "m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toFixed(2) : "",
-        "Ganancia/m²": row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neteado != null ? (toNum(row.neteado) / Number(row.unit.metrosCuadrados)).toFixed(2) : "",
-      }))
+      const data = annualRows.map((row: any) => {
+        const totalGastos = toNum(row.totalGastos) || (toNum(row.osse) + toNum(row.inmob) + toNum(row.tsu) + toNum(row.expensas) + toNum(row.obras) + toNum(row.otrosTotal))
+        const neto = toNum(row.neto)
+        const m2 = row.unit?.metrosCuadrados != null ? Number(row.unit.metrosCuadrados) : 0
+        return {
+          "Propietario/Grupo": getGroupName(row),
+          "Unidad": row.unit?.name || "",
+          "Alquiler": toNum(row.totalMes).toFixed(2),
+          "OSSE": toNum(row.osse).toFixed(2),
+          "Inmob": toNum(row.inmob).toFixed(2),
+          "TSU": toNum(row.tsu).toFixed(2),
+          "Expensas": toNum(row.expensas).toFixed(2),
+          "Obras": toNum(row.obras).toFixed(2),
+          "Otros": toNum(row.otrosTotal).toFixed(2),
+          "Total gastos": totalGastos.toFixed(2),
+          "NETO": neto.toFixed(2),
+          "m²": m2 > 0 ? m2.toFixed(2) : "",
+          "Ganancia/m²": m2 > 0 && neto != null ? (neto / m2).toFixed(2) : "",
+        }
+      })
 
       const annualRowsWithGroup = annualRows.map((row: any) => ({
         ...row,
@@ -712,46 +749,42 @@ export function StatementsPage({
 
       annualGroupTotals.forEach((groupTotal: any) => {
         if (groupTotal.groupId !== null) {
+          const tg = toNum(groupTotal.totalGastos) || (toNum(groupTotal.osse) + toNum(groupTotal.inmob) + toNum(groupTotal.tsu) + toNum(groupTotal.expensas) + toNum(groupTotal.obras) + toNum(groupTotal.otrosTotal))
           data.push({
             "Propietario/Grupo": `Subtotal ${groupTotal.groupName}`,
             "Unidad": "",
-            "Alquiler": toNum(groupTotal.alquiler).toFixed(2),
+            "Alquiler": toNum(groupTotal.totalMes).toFixed(2),
             "OSSE": toNum(groupTotal.osse).toFixed(2),
             "Inmob": toNum(groupTotal.inmob).toFixed(2),
             "TSU": toNum(groupTotal.tsu).toFixed(2),
+            "Expensas": toNum(groupTotal.expensas).toFixed(2),
             "Obras": toNum(groupTotal.obras).toFixed(2),
             "Otros": toNum(groupTotal.otrosTotal).toFixed(2),
-            "IVA": toNum(groupTotal.ivaAlquiler).toFixed(2),
-            "Total del año": toNum(groupTotal.totalMes).toFixed(2),
-            "Expensas": toNum(groupTotal.expensas).toFixed(2),
-            "Neto": toNum(groupTotal.neto).toFixed(2),
-            "Gastos": toNum(groupTotal.gastos).toFixed(2),
-            "Neteado": toNum(groupTotal.neteado).toFixed(2),
+            "Total gastos": tg.toFixed(2),
+            "NETO": toNum(groupTotal.neto).toFixed(2),
             "m²": groupTotal.m2 > 0 ? toNum(groupTotal.m2).toFixed(2) : "",
-            "Ganancia/m²": groupTotal.m2 > 0 ? (toNum(groupTotal.neteado) / groupTotal.m2).toFixed(2) : "",
+            "Ganancia/m²": groupTotal.m2 > 0 ? (toNum(groupTotal.neto) / groupTotal.m2).toFixed(2) : "",
           })
         }
       })
 
       const totalGeneral = annualGroupTotals.find((gt: any) => gt.groupId === null)
       if (totalGeneral) {
+        const tg = toNum(totalGeneral.totalGastos) || (toNum(totalGeneral.osse) + toNum(totalGeneral.inmob) + toNum(totalGeneral.tsu) + toNum(totalGeneral.expensas) + toNum(totalGeneral.obras) + toNum(totalGeneral.otrosTotal))
         data.push({
           "Propietario/Grupo": "TOTAL GENERAL",
           "Unidad": "",
-          "Alquiler": toNum(totalGeneral.alquiler).toFixed(2),
+          "Alquiler": toNum(totalGeneral.totalMes).toFixed(2),
           "OSSE": toNum(totalGeneral.osse).toFixed(2),
           "Inmob": toNum(totalGeneral.inmob).toFixed(2),
           "TSU": toNum(totalGeneral.tsu).toFixed(2),
+          "Expensas": toNum(totalGeneral.expensas).toFixed(2),
           "Obras": toNum(totalGeneral.obras).toFixed(2),
           "Otros": toNum(totalGeneral.otrosTotal).toFixed(2),
-          "IVA": toNum(totalGeneral.ivaAlquiler).toFixed(2),
-          "Total del año": toNum(totalGeneral.totalMes).toFixed(2),
-          "Expensas": toNum(totalGeneral.expensas).toFixed(2),
-          "Neto": toNum(totalGeneral.neto).toFixed(2),
-          "Gastos": toNum(totalGeneral.gastos).toFixed(2),
-          "Neteado": toNum(totalGeneral.neteado).toFixed(2),
+          "Total gastos": tg.toFixed(2),
+          "NETO": toNum(totalGeneral.neto).toFixed(2),
           "m²": totalGeneral.m2 > 0 ? toNum(totalGeneral.m2).toFixed(2) : "",
-          "Ganancia/m²": totalGeneral.m2 > 0 ? (toNum(totalGeneral.neteado) / totalGeneral.m2).toFixed(2) : "",
+          "Ganancia/m²": totalGeneral.m2 > 0 ? (toNum(totalGeneral.neto) / totalGeneral.m2).toFixed(2) : "",
         })
       }
 
@@ -858,13 +891,11 @@ export function StatementsPage({
                   <th className="text-right p-4 font-bold">OSSE</th>
                   <th className="text-right p-4 font-bold">Inmob</th>
                   <th className="text-right p-4 font-bold">TSU</th>
+                  <th className="text-right p-4 font-bold">Expensas</th>
                   <th className="text-right p-4 font-bold">Obras</th>
                   <th className="text-right p-4 font-bold">Otros</th>
-                  <th className="text-right p-4 font-bold">IVA</th>
-                  <th className="text-right p-4 font-bold bg-[#4CAF50]">Total del mes</th>
-                  <th className="text-right p-4 font-bold">Expensas</th>
-                  <th className="text-right p-4 font-bold">Neto</th>
-                  <th className="text-right p-4 font-bold bg-[#4CAF50]">Neteado</th>
+                  <th className="text-right p-4 font-bold bg-[#4CAF50]">Total gastos</th>
+                  <th className="text-right p-4 font-bold bg-[#4CAF50]">NETO</th>
                   <th className="text-right p-4 font-bold">m²</th>
                   <th className="text-right p-4 font-bold">Ganancia/m²</th>
                   <th className="text-center p-4 font-bold">Acciones</th>
@@ -922,19 +953,17 @@ export function StatementsPage({
                           <td colSpan={2} className="p-3 text-[#1B5E20]">
                             Subtotal {groupTotal.groupName} ({groupTotal.count} {groupTotal.count === 1 ? 'unidad' : 'unidades'})
                           </td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.alquiler.toLocaleString()}</td>
+                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.totalMes.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.osse.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.inmob.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.tsu.toLocaleString()}</td>
+                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.expensas.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.obras.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.otrosTotal.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.ivaAlquiler.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.totalMes.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.expensas.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.neto.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.neteado.toLocaleString()}</td>
+                          <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.totalGastos?.toLocaleString() ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal).toLocaleString()}</td>
+                          <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.neto.toLocaleString()}</td>
                           <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? (groupTotal.neteado / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           <td></td>
                         </tr>
                       )
@@ -950,19 +979,17 @@ export function StatementsPage({
                     <td colSpan={2} className="p-3 text-gray-900">
                       Subtotal {groupTotal.groupName}
                     </td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.alquiler.toLocaleString()}</td>
+                    <td className="p-3 text-right text-gray-900">{groupTotal.totalMes.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.osse.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.inmob.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.tsu.toLocaleString()}</td>
+                    <td className="p-3 text-right text-gray-900">{groupTotal.expensas.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.obras.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.otrosTotal.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.ivaAlquiler.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.totalMes.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.expensas.toLocaleString()}</td>
+                    <td className="p-3 text-right text-gray-900">{groupTotal.totalGastos?.toLocaleString() ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal).toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.neto.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.neteado.toLocaleString()}</td>
                     <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? (groupTotal.neteado / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                    <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                     <td></td>
                   </tr>
                 ))}
@@ -983,21 +1010,20 @@ export function StatementsPage({
                     </td>
                     {(() => {
                       const total = groupTotals.find(gt => gt.groupId === null)!
+                      const totalGastos = total.totalGastos ?? (total.osse + total.inmob + total.tsu + total.expensas + total.obras + total.otrosTotal)
                       return (
                         <>
-                          <td className="p-3 text-right">{total.alquiler.toLocaleString()}</td>
+                          <td className="p-3 text-right">{total.totalMes.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.osse.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.inmob.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.tsu.toLocaleString()}</td>
+                          <td className="p-3 text-right">{total.expensas.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.obras.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.otrosTotal.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.ivaAlquiler.toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{total.totalMes.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.expensas.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.neto.toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{total.neteado.toLocaleString()}</td>
+                          <td className="p-3 text-right font-bold text-lg">{totalGastos.toLocaleString()}</td>
+                          <td className="p-3 text-right font-bold text-lg">{total.neto.toLocaleString()}</td>
                           <td className="p-3 text-right">{total.m2 > 0 ? total.m2.toLocaleString() : "-"}</td>
-                          <td className="p-3 text-right">{total.m2 > 0 ? (total.neteado / total.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                          <td className="p-3 text-right">{total.m2 > 0 ? (total.neto / total.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           <td></td>
                         </>
                       )
@@ -1065,13 +1091,11 @@ export function StatementsPage({
                     <th className="text-right p-4 font-bold">OSSE</th>
                     <th className="text-right p-4 font-bold">Inmob</th>
                     <th className="text-right p-4 font-bold">TSU</th>
+                    <th className="text-right p-4 font-bold">Expensas</th>
                     <th className="text-right p-4 font-bold">Obras</th>
                     <th className="text-right p-4 font-bold">Otros</th>
-                    <th className="text-right p-4 font-bold">IVA</th>
-                    <th className="text-right p-4 font-bold bg-[#4CAF50]">Total del año</th>
-                    <th className="text-right p-4 font-bold">Expensas</th>
-                    <th className="text-right p-4 font-bold">Neto</th>
-                    <th className="text-right p-4 font-bold bg-[#4CAF50]">Neteado</th>
+                    <th className="text-right p-4 font-bold bg-[#4CAF50]">Total gastos</th>
+                    <th className="text-right p-4 font-bold bg-[#4CAF50]">NETO</th>
                     <th className="text-right p-4 font-bold">m²</th>
                     <th className="text-right p-4 font-bold">Ganancia/m²</th>
                   </tr>
@@ -1079,7 +1103,7 @@ export function StatementsPage({
                 <tbody>
                   {annualRows.length === 0 ? (
                     <tr>
-                      <td colSpan={15} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
+                      <td colSpan={13} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
                         <div className="flex flex-col items-center gap-2">
                           <svg className="h-12 w-12 text-[#4CAF50] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1125,19 +1149,17 @@ export function StatementsPage({
                               {getGroupName(row)}
                             </td>
                             <td className="p-3 text-gray-900 font-medium">{row.unit?.name || "-"}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.alquiler).toLocaleString()}</td>
+                            <td className="p-3 text-right text-gray-700">{toNum(row.totalMes).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.osse).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.inmob).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.tsu).toLocaleString()}</td>
+                            <td className="p-3 text-right text-gray-700">{toNum(row.expensas).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.obras).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-700">{toNum(row.otrosTotal).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.ivaAlquiler).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.totalMes).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.expensas).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.neto).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.neteado).toLocaleString()}</td>
+                            <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.totalGastos).toLocaleString()}</td>
+                            <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.neto).toLocaleString()}</td>
                             <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toLocaleString() : "-"}</td>
-                            <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neteado != null ? (toNum(row.neteado) / Number(row.unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                            <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neto != null ? (toNum(row.neto) / Number(row.unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           </tr>
                         )
                       })
@@ -1150,19 +1172,17 @@ export function StatementsPage({
                               <td colSpan={2} className="p-3 text-[#1B5E20]">
                                 Subtotal {gt.groupName} ({gt.count} {gt.count === 1 ? "unidad" : "unidades"})
                               </td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.alquiler).toLocaleString()}</td>
+                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.totalMes).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.osse).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.inmob).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.tsu).toLocaleString()}</td>
+                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.expensas).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.obras).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.otrosTotal).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.ivaAlquiler).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.totalMes).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.expensas).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.neto).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.neteado).toLocaleString()}</td>
+                              <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.totalGastos).toLocaleString()}</td>
+                              <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.neto).toLocaleString()}</td>
                               <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? toNum(gt.m2).toLocaleString() : "-"}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? (toNum(gt.neteado) / gt.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                              <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? (toNum(gt.neto) / gt.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                             </tr>
                           )
                         }
@@ -1181,26 +1201,24 @@ export function StatementsPage({
                               </span>
                             )}
                           </td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.alquiler).toLocaleString()}</td>
+                          <td className="p-3 text-right">{toNum(totalGeneral.totalMes).toLocaleString()}</td>
                           <td className="p-3 text-right">{toNum(totalGeneral.osse).toLocaleString()}</td>
                           <td className="p-3 text-right">{toNum(totalGeneral.inmob).toLocaleString()}</td>
                           <td className="p-3 text-right">{toNum(totalGeneral.tsu).toLocaleString()}</td>
+                          <td className="p-3 text-right">{toNum(totalGeneral.expensas).toLocaleString()}</td>
                           <td className="p-3 text-right">{toNum(totalGeneral.obras).toLocaleString()}</td>
                           <td className="p-3 text-right">{toNum(totalGeneral.otrosTotal).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.ivaAlquiler).toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.totalMes).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.expensas).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.neto).toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.neteado).toLocaleString()}</td>
+                          <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.totalGastos).toLocaleString()}</td>
+                          <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.neto).toLocaleString()}</td>
                           <td className="p-3 text-right">{totalGeneral.m2 > 0 ? toNum(totalGeneral.m2).toLocaleString() : "-"}</td>
-                          <td className="p-3 text-right">{totalGeneral.m2 > 0 ? (toNum(totalGeneral.neteado) / totalGeneral.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                          <td className="p-3 text-right">{totalGeneral.m2 > 0 ? (toNum(totalGeneral.neto) / totalGeneral.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                         </tr>
                       )
                     }
 
                     return renderedRows.length > 0 ? renderedRows : (
                       <tr>
-                        <td colSpan={15} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
+                        <td colSpan={13} className="p-8 text-center text-gray-500 bg-[#F1F8F4]">
                           <div className="flex flex-col items-center gap-2">
                             <svg className="h-12 w-12 text-[#4CAF50] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

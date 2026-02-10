@@ -48,24 +48,10 @@ export function StatementRow({
     ivaAlquiler: row.ivaAlquiler ?? row.iva ?? null,
     expensas: row.expensas || null,
   })
-  const [alquilerInput, setAlquilerInput] = useState<string>(() =>
-    row.alquiler != null && row.alquiler !== "" ? String(row.alquiler) : ""
-  )
-  const [ivaInput, setIvaInput] = useState<string>(() =>
-    row.ivaAlquiler != null && row.ivaAlquiler !== "" ? String(row.ivaAlquiler) : ""
-  )
   const [expensasInput, setExpensasInput] = useState<string>(() =>
     row.expensas != null && row.expensas !== "" ? String(row.expensas) : ""
   )
 
-  useEffect(() => {
-    const v = row.alquiler != null && row.alquiler !== "" ? String(row.alquiler) : ""
-    setAlquilerInput(v)
-  }, [row.unitId, row.period, row.alquiler])
-  useEffect(() => {
-    const v = row.ivaAlquiler != null && row.ivaAlquiler !== "" ? String(row.ivaAlquiler) : ""
-    setIvaInput(v)
-  }, [row.unitId, row.period, row.ivaAlquiler])
   useEffect(() => {
     const v = row.expensas != null && row.expensas !== "" ? String(row.expensas) : ""
     setExpensasInput(v)
@@ -145,13 +131,24 @@ export function StatementRow({
         </td>
         <td className="p-3 text-gray-900 font-medium">{unitName}</td>
         <td className="p-3">
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.alquiler || ""}
-            onChange={(e) => setFormData({ ...formData, alquiler: parseFloat(e.target.value) || 0 })}
-            className="w-24 text-right"
-          />
+          <div className="flex flex-col gap-1">
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.alquiler || ""}
+              onChange={(e) => setFormData({ ...formData, alquiler: parseFloat(e.target.value) || 0 })}
+              className="w-24 text-right"
+              placeholder="Alq."
+            />
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.ivaAlquiler ?? ""}
+              onChange={(e) => setFormData({ ...formData, ivaAlquiler: e.target.value ? parseFloat(e.target.value) : null })}
+              className="w-20 text-right text-sm"
+              placeholder="IVA"
+            />
+          </div>
         </td>
         <td className="p-3">
           <Input
@@ -184,6 +181,15 @@ export function StatementRow({
           <Input
             type="number"
             step="0.01"
+            value={formData.expensas || ""}
+            onChange={(e) => setFormData({ ...formData, expensas: e.target.value ? parseFloat(e.target.value) : null })}
+            className="w-24 text-right"
+          />
+        </td>
+        <td className="p-3">
+          <Input
+            type="number"
+            step="0.01"
             value={formData.obras || ""}
             onChange={(e) => setFormData({ ...formData, obras: e.target.value ? parseFloat(e.target.value) : null })}
             className="w-24 text-right"
@@ -198,35 +204,14 @@ export function StatementRow({
             className="w-24 text-right"
           />
         </td>
-        <td className="p-3">
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.ivaAlquiler ?? ""}
-            onChange={(e) => setFormData({ ...formData, ivaAlquiler: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
-          />
+        <td className="p-3 text-right text-gray-900 font-semibold">
+          {computed.totalGastos.toLocaleString()}
         </td>
         <td className="p-3 text-right text-gray-900 font-semibold">
-          {computed.totalMes.toLocaleString()}
-        </td>
-        <td className="p-3">
-          <Input
-            type="number"
-            step="0.01"
-            value={formData.expensas || ""}
-            onChange={(e) => setFormData({ ...formData, expensas: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
-          />
-        </td>
-        <td className="p-3 text-right text-gray-700 font-medium">
           {computed.neto.toLocaleString()}
         </td>
-        <td className="p-3 text-right text-gray-900 font-semibold">
-          {computed.neteado.toLocaleString()}
-        </td>
         <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados ? Number(unit.metrosCuadrados).toLocaleString() : "-"}</td>
-        <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados && Number(unit.metrosCuadrados) > 0 ? (computed.neteado / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+        <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados && Number(unit.metrosCuadrados) > 0 ? (computed.neto / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
         <td className="p-3">
           <div className="flex gap-2 justify-center">
             <Button
@@ -249,6 +234,10 @@ export function StatementRow({
     )
   }
 
+  const totalGastos = row.totalGastos ?? (Number(row.osse || 0) + Number(row.inmob || 0) + Number(row.tsu || 0) + Number(row.expensas || 0) + Number(row.obras || 0) + Number(row.otrosTotal || 0))
+  const netoVal = row.neto ?? (Number(row.totalMes || 0) - totalGastos)
+  const m2 = unit?.metrosCuadrados != null ? Number(unit.metrosCuadrados) : 0
+
   return (
     <tr className="border-b border-gray-200 hover:bg-gray-50">
       <td className="p-3 text-gray-900 sticky left-0 bg-white z-10">
@@ -256,26 +245,40 @@ export function StatementRow({
         <div className="text-sm text-gray-600">{owner}</div>
       </td>
       <td className="p-3 text-gray-900 font-medium">{unitName}</td>
+      <td className="p-3 text-right text-gray-900 font-medium">
+        {row.totalMes?.toLocaleString() ?? "0"}
+      </td>
+      <td className="p-3 text-right text-gray-700">{row.osse?.toLocaleString() || "-"}</td>
+      <td className="p-3 text-right text-gray-700">{row.inmob?.toLocaleString() || "-"}</td>
+      <td className="p-3 text-right text-gray-700">{row.tsu?.toLocaleString() || "-"}</td>
       <td className="p-3">
         <Input
           type="number"
           step="0.01"
           min={0}
-          value={alquilerInput}
-          onChange={(e) => setAlquilerInput(e.target.value)}
+          value={expensasInput}
+          onChange={(e) => setExpensasInput(e.target.value)}
           onBlur={() => {
-            const n = alquilerInput === "" ? 0 : parseFloat(alquilerInput)
-            const prev = Number(row.alquiler) || 0
-            if (!Number.isNaN(n) && n !== prev && onAlquilerBlur) {
-              onAlquilerBlur(row, n)
+            const n = expensasInput === "" ? 0 : parseFloat(expensasInput)
+            if (!Number.isNaN(n)) {
+              const newComputed = computeStatement({
+                alquiler: row.alquiler || 0,
+                osse: row.osse || undefined,
+                inmob: row.inmob || undefined,
+                tsu: row.tsu || undefined,
+                obras: row.obras || undefined,
+                otrosTotal: row.otrosTotal || undefined,
+                iva: row.ivaAlquiler ?? undefined,
+                expensas: n,
+                aplicaIvaAlquiler,
+                ivaRate,
+              })
+              onSave({ ...row, ...newComputed, expensas: n })
             }
           }}
           className="w-24 text-right h-9"
         />
       </td>
-      <td className="p-3 text-right text-gray-700">{row.osse?.toLocaleString() || "-"}</td>
-      <td className="p-3 text-right text-gray-700">{row.inmob?.toLocaleString() || "-"}</td>
-      <td className="p-3 text-right text-gray-700">{row.tsu?.toLocaleString() || "-"}</td>
       <td className="p-3 text-right text-gray-700">
         {row.obras && row.obras > 0 ? (
           <button
@@ -318,67 +321,10 @@ export function StatementRow({
           "-"
         )}
       </td>
-      <td className="p-3">
-        <Input
-          type="number"
-          step="0.01"
-          min={0}
-          value={ivaInput}
-          onChange={(e) => setIvaInput(e.target.value)}
-          onBlur={() => {
-            const n = ivaInput === "" ? 0 : parseFloat(ivaInput)
-            if (!Number.isNaN(n)) {
-              const newComputed = computeStatement({
-                alquiler: row.alquiler || 0,
-                osse: row.osse || undefined,
-                inmob: row.inmob || undefined,
-                tsu: row.tsu || undefined,
-                obras: row.obras || undefined,
-                otrosTotal: row.otrosTotal || undefined,
-                iva: n,
-                expensas: row.expensas || undefined,
-                aplicaIvaAlquiler,
-                ivaRate,
-              })
-              onSave({ ...row, ...newComputed, ivaAlquiler: n })
-            }
-          }}
-          className="w-24 text-right h-9"
-        />
-      </td>
-      <td className="p-3 text-right text-gray-900 font-semibold">{row.totalMes?.toLocaleString() || "0"}</td>
-      <td className="p-3">
-        <Input
-          type="number"
-          step="0.01"
-          min={0}
-          value={expensasInput}
-          onChange={(e) => setExpensasInput(e.target.value)}
-          onBlur={() => {
-            const n = expensasInput === "" ? 0 : parseFloat(expensasInput)
-            if (!Number.isNaN(n)) {
-              const newComputed = computeStatement({
-                alquiler: row.alquiler || 0,
-                osse: row.osse || undefined,
-                inmob: row.inmob || undefined,
-                tsu: row.tsu || undefined,
-                obras: row.obras || undefined,
-                otrosTotal: row.otrosTotal || undefined,
-                iva: row.ivaAlquiler ?? undefined,
-                expensas: n,
-                aplicaIvaAlquiler,
-                ivaRate,
-              })
-              onSave({ ...row, ...newComputed, expensas: n })
-            }
-          }}
-          className="w-24 text-right h-9"
-        />
-      </td>
-      <td className="p-3 text-right text-gray-700 font-medium">{row.neto?.toLocaleString() || "0"}</td>
-      <td className="p-3 text-right text-gray-900 font-semibold">{row.neteado?.toLocaleString() || "0"}</td>
-      <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados != null && Number(unit.metrosCuadrados) > 0 ? Number(unit.metrosCuadrados).toLocaleString() : "-"}</td>
-      <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados != null && Number(unit.metrosCuadrados) > 0 && row.neteado != null ? (Number(row.neteado) / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+      <td className="p-3 text-right text-gray-900 font-semibold">{totalGastos.toLocaleString()}</td>
+      <td className="p-3 text-right text-gray-900 font-semibold">{netoVal.toLocaleString()}</td>
+      <td className="p-3 text-right text-gray-600">{m2 > 0 ? m2.toLocaleString() : "-"}</td>
+      <td className="p-3 text-right text-gray-600">{m2 > 0 && netoVal != null ? (netoVal / m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
       <td className="p-3">
         <Button
           size="sm"

@@ -30,6 +30,8 @@ export interface StatementInput {
 export interface ComputedTotals {
   ivaAlquiler: number
   totalMes: number
+  /** Total gastos = OSSE + Inmob + TSU + Expensas + Obras + Otros */
+  totalGastos: number
   neto: number
   gastos: number
   neteado: number
@@ -80,10 +82,7 @@ export function computeStatement(input: StatementInput): ComputedTotals {
     })
   }
 
-  // 2. NETO = TOTAL_MES - EXPENSAS
-  const neto = totalMes - expensas
-
-  // 3. GASTOS = OSSE + TSU + INMOB + OBRAS + OTROS (se restan del neto para neteado)
+  // 2. TOTAL_GASTOS = OSSE + Inmob + TSU + Expensas + Obras + Otros
   let gastos = osse + tsu + inmob + obras + otrosTotal
   if (input.items) {
     input.items.forEach(item => {
@@ -92,17 +91,19 @@ export function computeStatement(input: StatementInput): ComputedTotals {
       }
     })
   }
+  const totalGastos = gastos + expensas
 
-  // 4. NETEADO = NETO - GASTOS
-  const neteado = neto - gastos
+  // 3. NETO = Alquiler (totalMes) - Total gastos
+  const neto = totalMes - totalGastos
 
   // Redondear a 2 decimales
   return {
     ivaAlquiler: roundTo2Decimals(ivaAlquiler),
     totalMes: roundTo2Decimals(totalMes),
+    totalGastos: roundTo2Decimals(totalGastos),
     neto: roundTo2Decimals(neto),
     gastos: roundTo2Decimals(gastos),
-    neteado: roundTo2Decimals(neteado),
+    neteado: roundTo2Decimals(neto), // neteado = neto (para compatibilidad)
   }
 }
 
@@ -121,6 +122,7 @@ export interface GroupTotals {
   ivaAlquiler: number
   totalMes: number
   expensas: number
+  totalGastos: number
   neto: number
   gastos: number
   neteado: number
@@ -153,6 +155,7 @@ export function aggregateByGroup(
     ivaAlquiler: 0,
     totalMes: 0,
     expensas: 0,
+    totalGastos: 0,
     neto: 0,
     gastos: 0,
     neteado: 0,
@@ -177,6 +180,7 @@ export function aggregateByGroup(
         ivaAlquiler: 0,
         totalMes: 0,
         expensas: 0,
+        totalGastos: 0,
         neto: 0,
         gastos: 0,
         neteado: 0,
@@ -195,9 +199,10 @@ export function aggregateByGroup(
     const ivaAlquiler = Number(statement.ivaAlquiler || 0)
     const totalMes = Number(statement.totalMes || 0)
     const expensas = Number(statement.expensas || 0)
-    const neto = Number(statement.neto || 0)
+    const totalGastos = Number(statement.totalGastos ?? (osse + inmob + tsu + expensas + obras + otrosTotal))
+    const neto = Number(statement.neto ?? (totalMes - totalGastos))
     const gastos = Number(statement.gastos || 0)
-    const neteado = Number(statement.neteado || 0)
+    const neteado = Number(statement.neteado ?? neto)
     const m2 = Number((statement.unit as any)?.metrosCuadrados || 0)
 
     // Agregar al grupo específico
@@ -210,6 +215,7 @@ export function aggregateByGroup(
     group.ivaAlquiler += ivaAlquiler
     group.totalMes += totalMes
     group.expensas += expensas
+    group.totalGastos += totalGastos
     group.neto += neto
     group.gastos += gastos
     group.neteado += neteado
@@ -228,6 +234,7 @@ export function aggregateByGroup(
       totalGeneral.ivaAlquiler += ivaAlquiler
       totalGeneral.totalMes += totalMes
       totalGeneral.expensas += expensas
+      totalGeneral.totalGastos += totalGastos
       totalGeneral.neto += neto
       totalGeneral.gastos += gastos
       totalGeneral.neteado += neteado
@@ -248,6 +255,7 @@ export function aggregateByGroup(
     ivaAlquiler: roundTo2Decimals(group.ivaAlquiler),
     totalMes: roundTo2Decimals(group.totalMes),
     expensas: roundTo2Decimals(group.expensas),
+    totalGastos: roundTo2Decimals(group.totalGastos),
     neto: roundTo2Decimals(group.neto),
     gastos: roundTo2Decimals(group.gastos),
     neteado: roundTo2Decimals(group.neteado),
