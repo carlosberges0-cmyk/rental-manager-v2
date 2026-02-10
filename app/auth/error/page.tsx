@@ -4,7 +4,6 @@ import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 
 function AuthErrorContent() {
   const searchParams = useSearchParams()
@@ -29,13 +28,13 @@ function AuthErrorContent() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-lg">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-lg border border-gray-200 bg-white shadow-lg">
         <CardHeader>
-          <CardTitle className="text-red-600">
+          <CardTitle className="text-red-600" style={{ color: "#dc2626" }}>
             Error al iniciar sesión
           </CardTitle>
-          <CardDescription>
+          <CardDescription style={{ color: "#374151" }}>
             {isConfiguration
               ? "Hay un problema con la configuración del servidor."
               : "Ocurrió un error durante el inicio de sesión."}
@@ -59,9 +58,15 @@ function AuthErrorContent() {
                 Ver diagnóstico de configuración →
               </a>
               <div className="mt-4 pt-4 border-t border-amber-200">
-                <Button variant="outline" size="sm" onClick={fetchDebugError} disabled={loadingDebug}>
+                <button
+                  type="button"
+                  onClick={fetchDebugError}
+                  disabled={loadingDebug}
+                  className="rounded-md border px-3 py-1.5 text-sm"
+                  style={{ borderColor: "#d97706", color: "#92400e", backgroundColor: "#fffbeb" }}
+                >
                   {loadingDebug ? "Cargando..." : "Ver error real del servidor"}
-                </Button>
+                </button>
                 {debugInfo && (
                   <pre className="mt-2 p-3 bg-amber-100 rounded text-xs overflow-auto max-h-48">
                     {JSON.stringify(debugInfo, null, 2)}
@@ -71,12 +76,20 @@ function AuthErrorContent() {
             </div>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button asChild className="text-white" style={{ backgroundColor: "#1B5E20" }}>
-              <Link href="/auth/signin" className="text-white hover:text-white">Volver a intentar</Link>
-            </Button>
-            <Button variant="outline" asChild className="border-gray-400 text-gray-900 hover:bg-gray-100">
-              <Link href="/">Ir al inicio</Link>
-            </Button>
+            <Link
+              href="/auth/signin"
+              className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium"
+              style={{ backgroundColor: "#1B5E20", color: "#ffffff", textDecoration: "none" }}
+            >
+              Volver a intentar
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center rounded-md border border-gray-400 px-4 py-2 text-sm font-medium"
+              style={{ color: "#111827", backgroundColor: "#f9fafb", textDecoration: "none" }}
+            >
+              Ir al inicio
+            </Link>
           </div>
         </CardContent>
       </Card>
