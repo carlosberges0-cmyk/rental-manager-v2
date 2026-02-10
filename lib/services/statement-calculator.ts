@@ -12,6 +12,8 @@ export interface StatementInput {
   tsu?: number
   obras?: number
   otrosTotal?: number
+  /** Ingresos por gastos pagados por el inquilino (TSU, INMOB, OBRAS): se suman al total del mes y se restan en gastos */
+  paidByTenantIncome?: number
   iva?: number // IVA como monto editable (no calculado)
   expensas?: number
   aplicaIvaAlquiler?: boolean // Deprecated: IVA ahora es input directo
@@ -57,8 +59,10 @@ export function computeStatement(input: StatementInput): ComputedTotals {
     ivaAlquiler = alquiler * Number(input.ivaRate)
   }
 
-  // 1. TOTAL_DEL_MES = Alquiler + OSSE + INMOB + IVA (TSU no se suma aquí)
-  let totalMes = alquiler + osse + inmob + ivaAlquiler
+  // 1. TOTAL_DEL_MES = Alquiler + IVA + paidByTenantIncome (ingresos por TSU/INMOB/OBRAS pagados por inquilino)
+  //    OSSE, INMOB, TSU no se suman al total salvo cuando son paidByTenant (ahí van en paidByTenantIncome)
+  const paidByTenantIncome = Number(input.paidByTenantIncome || 0)
+  let totalMes = alquiler + ivaAlquiler + paidByTenantIncome
 
   // Agregar items CHARGE
   if (input.items) {

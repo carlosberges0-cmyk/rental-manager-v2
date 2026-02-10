@@ -111,6 +111,7 @@ export function StatementsPage({
         const tsuByUnit = new Map<string, number>()
         const obrasByUnit = new Map<string, number>()
         const otrosByUnit = new Map<string, number>()
+        const paidByTenantByUnit = new Map<string, number>()
         yearExpensesList.forEach((e: any) => {
           const uid = e.unitId
           const amt = toNum(e.amount)
@@ -118,10 +119,13 @@ export function StatementsPage({
             osseByUnit.set(uid, (osseByUnit.get(uid) || 0) + amt)
           } else if (e.category === "INMOB") {
             inmobByUnit.set(uid, (inmobByUnit.get(uid) || 0) + amt)
+            if (e.paidByTenant) paidByTenantByUnit.set(uid, (paidByTenantByUnit.get(uid) || 0) + amt)
           } else if (e.category === "TSU") {
             tsuByUnit.set(uid, (tsuByUnit.get(uid) || 0) + amt)
+            if (e.paidByTenant) paidByTenantByUnit.set(uid, (paidByTenantByUnit.get(uid) || 0) + amt)
           } else if (e.category === "OBRAS") {
             obrasByUnit.set(uid, (obrasByUnit.get(uid) || 0) + amt)
+            if (e.paidByTenant) paidByTenantByUnit.set(uid, (paidByTenantByUnit.get(uid) || 0) + amt)
           } else if (e.category === "OTROS") {
             otrosByUnit.set(uid, (otrosByUnit.get(uid) || 0) + amt)
           }
@@ -149,6 +153,7 @@ export function StatementsPage({
             tsu: tsuByUnit.get(unit.id) || 0,
             obras: obrasByUnit.get(unit.id) || 0,
             otrosTotal: otrosByUnit.get(unit.id) || 0,
+            paidByTenantIncome: paidByTenantByUnit.get(unit.id) || 0,
             expensas: 0,
             ivaAlquiler: 0,
             totalMes: 0,
@@ -197,9 +202,9 @@ export function StatementsPage({
           r.gastos = (r.osse || 0) + (r.tsu || 0) + (r.inmob || 0) + (r.obras || 0) + (r.otrosTotal || 0)
         })
 
-        // 5. Total anual, neto, neteado (TOTAL_MES = Alquiler+OSSE+Inmob+IVA, NETO = TOTAL_MES - Expensas, NETEADO = NETO - Gastos)
+        // 5. Total anual, neto, neteado (TOTAL_MES = Alquiler+IVA+paidByTenantIncome, NETO = TOTAL_MES - Expensas, NETEADO = NETO - Gastos)
         resultados.forEach((r) => {
-          r.totalMes = (r.alquiler || 0) + (r.osse || 0) + (r.inmob || 0) + (r.ivaAlquiler || 0)
+          r.totalMes = (r.alquiler || 0) + (r.ivaAlquiler || 0) + (r.paidByTenantIncome || 0)
           r.neto = r.totalMes - (r.expensas || 0)
           r.neteado = r.neto - r.gastos
         })
@@ -284,6 +289,9 @@ export function StatementsPage({
       const tsuFromExpenses = unitExpenses.filter((e: any) => e.category === 'TSU').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
       const obrasFromExpenses = unitExpenses.filter((e: any) => e.category === 'OBRAS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
       const otrosFromExpenses = unitExpenses.filter((e: any) => e.category === 'OTROS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+      const paidByTenantIncome = unitExpenses
+        .filter((e: any) => (e.category === 'TSU' || e.category === 'INMOB' || e.category === 'OBRAS') && e.paidByTenant)
+        .reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0)
       
       // Usar valores del statement si existen, sino usar gastos del período
       const osse = (stmt.osse && Number(stmt.osse) > 0) ? Number(stmt.osse) : (osseFromExpenses > 0 ? osseFromExpenses : undefined)
@@ -300,6 +308,7 @@ export function StatementsPage({
         tsu,
         obras,
         otrosTotal,
+        paidByTenantIncome: paidByTenantIncome > 0 ? paidByTenantIncome : undefined,
         iva: stmt.ivaAlquiler != null ? Number(stmt.ivaAlquiler) : undefined,
         expensas: finalExpensas > 0 ? finalExpensas : undefined,
         aplicaIvaAlquiler,
@@ -348,11 +357,12 @@ export function StatementsPage({
         const osse = unitExpenses.filter((e: any) => e.category === 'OSSE').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
         const inmob = unitExpenses.filter((e: any) => e.category === 'INMOB').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
         const tsu = unitExpenses.filter((e: any) => e.category === 'TSU').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
-        // Para OBRAS y OTROS: sumar todos los gastos del período (se acumulan)
         const obras = unitExpenses.filter((e: any) => e.category === 'OBRAS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
         const otrosTotal = unitExpenses.filter((e: any) => e.category === 'OTROS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0) || null
+        const paidByTenantIncome = unitExpenses
+          .filter((e: any) => (e.category === 'TSU' || e.category === 'INMOB' || e.category === 'OBRAS') && e.paidByTenant)
+          .reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0)
         
-        // Calcular totales iniciales
         const aplicaIvaAlquiler = unit.aplicaIvaAlquiler ?? false
         const ivaRate = unit.ivaRatePercent ? unit.ivaRatePercent / 100 : 0.21
         
@@ -363,6 +373,7 @@ export function StatementsPage({
           tsu: tsu && tsu > 0 ? tsu : undefined,
           obras: obras && obras > 0 ? obras : undefined,
           otrosTotal: otrosTotal && otrosTotal > 0 ? otrosTotal : undefined,
+          paidByTenantIncome: paidByTenantIncome > 0 ? paidByTenantIncome : undefined,
           iva: undefined,
           expensas: expensas || undefined,
           aplicaIvaAlquiler,
@@ -1369,6 +1380,7 @@ function ExpenseDialog({
     amount: string
     currency: "ARS" | "USD"
     deductibleFlag: boolean
+    paidByTenant: boolean
     vendor: string
   }>({
     unitId: units[0]?.id || "",
@@ -1379,6 +1391,7 @@ function ExpenseDialog({
     amount: "",
     currency: "ARS",
     deductibleFlag: false,
+    paidByTenant: false,
     vendor: "",
   })
   
@@ -1394,6 +1407,7 @@ function ExpenseDialog({
         amount: "",
         currency: "ARS",
         deductibleFlag: false,
+        paidByTenant: false,
         vendor: "",
       })
     }
@@ -1413,6 +1427,7 @@ function ExpenseDialog({
       const dataToSubmit = {
         ...formData,
         amount: parseFloat(formData.amount),
+        paidByTenant: formData.paidByTenant ?? false,
       }
 
       const created = await createExpense(dataToSubmit)
@@ -1533,7 +1548,7 @@ function ExpenseDialog({
             />
           </div>
           
-          <div>
+          <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -1542,6 +1557,15 @@ function ExpenseDialog({
               />
               <span className="text-sm text-gray-900">Deducible</span>
             </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.paidByTenant}
+                onChange={(e) => setFormData({ ...formData, paidByTenant: e.target.checked })}
+              />
+              <span className="text-sm text-gray-900 font-medium">Pago por el inquilino</span>
+            </label>
+            <p className="text-xs text-gray-500">Si está marcado, el gasto se suma como ingreso y luego se resta en gastos (solo para TSU, Inmob, Obras)</p>
           </div>
           
           <div className="flex justify-end gap-2 pt-4 border-t">

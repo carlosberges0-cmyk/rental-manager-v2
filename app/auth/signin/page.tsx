@@ -17,7 +17,7 @@ export default function SignInPage() {
         <CardContent>
           <Button
             type="button"
-            className="w-full"
+            className="w-full bg-[#1B5E20] hover:bg-[#2E7D32] text-white"
             onClick={() => signIn("google", { callbackUrl: "/" })}
           >
             Continuar con Google

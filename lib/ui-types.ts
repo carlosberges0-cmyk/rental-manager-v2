@@ -57,6 +57,7 @@ export type ExpenseUI = {
   amount: number
   currency: string
   deductibleFlag: boolean
+  paidByTenant: boolean
   vendor: string | null
   ivaRatePercent: number | null
   ivaAmount: number | null

@@ -15,6 +15,7 @@ const expenseSchema = z.object({
   amount: z.number().or(z.string()),
   currency: z.enum(["ARS", "USD"]),
   deductibleFlag: z.boolean().optional(),
+  paidByTenant: z.boolean().optional(),
   vendor: z.string().optional(),
 })
 
@@ -65,6 +66,7 @@ export async function createExpense(data: z.infer<typeof expenseSchema>) {
       amount,
       currency: validated.currency,
       deductibleFlag: validated.deductibleFlag ?? false,
+      paidByTenant: validated.paidByTenant ?? false,
       vendor: validated.vendor,
       // Expenses don't have taxes - set to null
       ivaRatePercent: null,
@@ -111,6 +113,7 @@ export async function createExpense(data: z.infer<typeof expenseSchema>) {
     amount: decimalToNumber(expense.amount) || 0,
     currency: expense.currency,
     deductibleFlag: expense.deductibleFlag,
+    paidByTenant: expense.paidByTenant ?? false,
     vendor: expense.vendor || null,
     ivaRatePercent: decimalToNumber(expense.ivaRatePercent),
     ivaAmount: decimalToNumber(expense.ivaAmount),
@@ -179,6 +182,7 @@ export async function updateExpense(
 
   if (data.currency) updateData.currency = data.currency
   if (data.deductibleFlag !== undefined) updateData.deductibleFlag = data.deductibleFlag
+  if (data.paidByTenant !== undefined) updateData.paidByTenant = data.paidByTenant
   if (data.vendor !== undefined) updateData.vendor = data.vendor
 
   const expense = await prisma.monthlyExpense.update({
@@ -219,6 +223,7 @@ export async function updateExpense(
     amount: decimalToNumber(expense.amount) || 0,
     currency: expense.currency,
     deductibleFlag: expense.deductibleFlag,
+    paidByTenant: expense.paidByTenant ?? false,
     vendor: expense.vendor || null,
     ivaRatePercent: decimalToNumber(expense.ivaRatePercent),
     ivaAmount: decimalToNumber(expense.ivaAmount),
@@ -322,6 +327,7 @@ export async function getExpenses(unitId?: string, month?: string) {
     totalAmount?: unknown
     currency: string
     deductibleFlag: boolean
+    paidByTenant?: boolean
     vendor?: string | null
     ivaRatePercent?: unknown
     ivaAmount?: unknown
@@ -366,6 +372,7 @@ export async function getExpenses(unitId?: string, month?: string) {
       amount: amountNum !== null && amountNum !== undefined ? amountNum : 0,
       currency: expense.currency,
       deductibleFlag: expense.deductibleFlag,
+      paidByTenant: (expense as any).paidByTenant ?? false,
       vendor: expense.vendor || null,
       ivaRatePercent: decimalToNumber(expense.ivaRatePercent),
       ivaAmount: decimalToNumber(expense.ivaAmount),

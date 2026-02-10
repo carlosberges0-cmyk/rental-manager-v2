@@ -114,6 +114,7 @@ export function toExpenseUI(e: unknown): ExpenseUI {
     amount: amountNum ?? 0,
     currency: toStr(r.currency),
     deductibleFlag: Boolean(r.deductibleFlag),
+    paidByTenant: Boolean(r.paidByTenant),
     vendor: r.vendor != null ? toStr(r.vendor) : null,
     ivaRatePercent: toNum(r.ivaRatePercent),
     ivaAmount: toNum(r.ivaAmount),

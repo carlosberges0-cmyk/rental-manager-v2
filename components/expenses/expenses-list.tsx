@@ -544,6 +544,7 @@ function ExpenseDialog({
     amount: string
     currency: "ARS" | "USD"
     deductibleFlag: boolean
+    paidByTenant: boolean
     vendor: string
   }>({
     unitId: expense?.unitId || units[0]?.id || "",
@@ -554,6 +555,7 @@ function ExpenseDialog({
     amount: expense ? Number(expense.amount).toString() : "",
     currency: (expense?.currency as "ARS" | "USD") || "ARS",
     deductibleFlag: expense?.deductibleFlag || false,
+    paidByTenant: expense?.paidByTenant ?? false,
     vendor: expense?.vendor || "",
   })
   
@@ -693,7 +695,7 @@ function ExpenseDialog({
             />
           </div>
           
-          <div>
+          <div className="flex flex-col gap-3">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -702,6 +704,16 @@ function ExpenseDialog({
               />
               <span className="text-sm text-gray-900">Deducible</span>
             </label>
+            {["TSU", "INMOB", "OBRAS"].includes(formData.category) && (
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.paidByTenant}
+                  onChange={(e) => setFormData({ ...formData, paidByTenant: e.target.checked })}
+                />
+                <span className="text-sm text-gray-900">Pago por el inquilino</span>
+              </label>
+            )}
           </div>
           
           <div className="flex justify-end gap-2 pt-4 border-t">

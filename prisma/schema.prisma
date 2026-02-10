@@ -225,6 +225,7 @@ model MonthlyExpense {
   amount          Decimal         @db.Decimal(10, 2)
   currency        Currency
   deductibleFlag  Boolean         @default(false)
+  paidByTenant    Boolean         @default(false) // Pago por el inquilino: suma como ingreso y se resta en gastos
   vendor          String?
   ivaRatePercent  Decimal?        @db.Decimal(5, 2) // IVA percentage (e.g., 21%)
   ivaAmount       Decimal?        @db.Decimal(10, 2) // Calculated IVA amount
