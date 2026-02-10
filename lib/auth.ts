@@ -26,6 +26,19 @@ function logError(tag: string, err: unknown) {
       console.error(`[auth] ${tag} cause.err stack:`, cause.err.stack)
     }
   }
+  // Guardar para que /api/auth/last-error pueda exponerlo (debug)
+  if (typeof globalThis !== "undefined") {
+    (globalThis as any).__authLastError = {
+      tag,
+      message: e.message,
+      stack: e.stack,
+      cause: cause ? String(cause) : undefined,
+      causeErr: (cause && typeof cause === "object" && "err" in cause && cause.err instanceof Error)
+        ? { message: cause.err.message, stack: cause.err.stack }
+        : undefined,
+      at: new Date().toISOString(),
+    }
+  }
 }
 
 function wrapAdapter<T extends object>(adapter: T): T {
@@ -50,11 +63,14 @@ function wrapAdapter<T extends object>(adapter: T): T {
 
 const baseAdapter = PrismaAdapter(prisma)
 
+const authUrl = (process.env.AUTH_URL || process.env.NEXTAUTH_URL)?.replace(/\/$/, "")
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: wrapAdapter(baseAdapter) as typeof baseAdapter,
   trustHost: true,
   basePath: "/api/auth",
-  debug: authDebug,
+  ...(authUrl && { url: authUrl }), // En Vercel: AUTH_URL=https://tu-dominio.vercel.app
+  debug: authDebug || process.env.NODE_ENV === "development",
   logger: {
     error(err: Error) {
       logError("logger.error", err)

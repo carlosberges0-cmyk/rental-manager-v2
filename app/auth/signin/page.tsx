@@ -1,11 +1,10 @@
 "use client"
 
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function SignInPage() {
-  const signInUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent("/")}`
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
@@ -19,7 +18,7 @@ export default function SignInPage() {
           <Button
             type="button"
             className="w-full"
-            onClick={() => { window.location.href = signInUrl }}
+            onClick={() => signIn("google", { callbackUrl: "/" })}
           >
             Continuar con Google
           </Button>

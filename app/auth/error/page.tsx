@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,8 +9,24 @@ import { Button } from "@/components/ui/button"
 function AuthErrorContent() {
   const searchParams = useSearchParams()
   const error = searchParams.get("error") || ""
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null)
+  const [loadingDebug, setLoadingDebug] = useState(false)
 
   const isConfiguration = error === "Configuration"
+
+  const fetchDebugError = async () => {
+    setLoadingDebug(true)
+    setDebugInfo(null)
+    try {
+      const res = await fetch("/api/auth/last-error")
+      const data = await res.json()
+      setDebugInfo(data)
+    } catch {
+      setDebugInfo({ error: "No se pudo obtener el error" })
+    } finally {
+      setLoadingDebug(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
@@ -42,6 +58,16 @@ function AuthErrorContent() {
               <a href="/api/auth/diagnose" target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm text-amber-700 underline">
                 Ver diagnóstico de configuración →
               </a>
+              <div className="mt-4 pt-4 border-t border-amber-200">
+                <Button variant="outline" size="sm" onClick={fetchDebugError} disabled={loadingDebug}>
+                  {loadingDebug ? "Cargando..." : "Ver error real del servidor"}
+                </Button>
+                {debugInfo && (
+                  <pre className="mt-2 p-3 bg-amber-100 rounded text-xs overflow-auto max-h-48">
+                    {JSON.stringify(debugInfo, null, 2)}
+                  </pre>
+                )}
+              </div>
             </div>
           )}
           <div className="flex gap-2">
