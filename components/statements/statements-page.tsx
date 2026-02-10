@@ -13,7 +13,7 @@ import { upsertStatement, getStatements } from "@/lib/actions/statements"
 import { getExpenses } from "@/lib/actions/expenses"
 import { useRouter } from "next/navigation"
 import { StatementRow } from "./statement-row"
-import { Download, Plus, Trash2 } from "lucide-react"
+import { Download, Plus, Trash2, Save } from "lucide-react"
 import * as XLSX from "xlsx"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { createExpense, deleteExpense } from "@/lib/actions/expenses"
@@ -45,6 +45,7 @@ export function StatementsPage({
   const [loadingAnnual, setLoadingAnnual] = useState(false)
   const [annualRefreshKey, setAnnualRefreshKey] = useState(0) // Incrementar al guardar para recargar anual
   const [showExpenseDialog, setShowExpenseDialog] = useState(false)
+  const [savingAll, setSavingAll] = useState(false)
   const [expenseFilterMonth, setExpenseFilterMonth] = useState(period) // Mes/año para filtrar gastos
   const [expenseDetails, setExpenseDetails] = useState<{
     open: boolean
@@ -473,96 +474,78 @@ export function StatementsPage({
     return aggregateByGroup(rowsWithGroup)
   }, [annualRows])
 
+  const toNumberOrUndefined = (val: any): number | undefined => {
+    if (val === null || val === undefined || val === '') return undefined
+    const num = typeof val === 'string' ? parseFloat(val.trim()) : Number(val)
+    return isNaN(num) ? undefined : num
+  }
+
+  const prepareStatementData = (rowData: any) => {
+    const manualExpensas = rowData.expensas ? Number(rowData.expensas) : 0
+    const unitExpenses = periodExpenses.filter((e: any) => e.unitId === rowData.unitId)
+    const obrasFromExpenses = unitExpenses.filter((e: any) => e.category === 'OBRAS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+    const otrosFromExpenses = unitExpenses.filter((e: any) => e.category === 'OTROS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
+    const obrasManual = toNumberOrUndefined(rowData.obras) || 0
+    const otrosManual = toNumberOrUndefined(rowData.otrosTotal) || 0
+    const obrasToSave = obrasFromExpenses > 0 ? undefined : (obrasManual > 0 ? obrasManual : undefined)
+    const otrosToSave = otrosFromExpenses > 0 ? undefined : (otrosManual > 0 ? otrosManual : undefined)
+    return {
+      period,
+      unitId: rowData.unitId,
+      tenantId: rowData.tenantId || undefined,
+      alquiler: (rowData.alquiler !== null && rowData.alquiler !== undefined && rowData.alquiler !== '') ? Number(rowData.alquiler) : 0,
+      osse: toNumberOrUndefined(rowData.osse),
+      inmob: toNumberOrUndefined(rowData.inmob),
+      tsu: toNumberOrUndefined(rowData.tsu),
+      obras: obrasToSave,
+      otrosTotal: otrosToSave,
+      ivaAlquiler: toNumberOrUndefined(rowData.ivaAlquiler),
+      expensas: manualExpensas > 0 ? manualExpensas : undefined,
+      notes: rowData.notes || undefined,
+    }
+  }
+
   const handleSaveRow = async (rowData: any) => {
     try {
       const unit = units.find(u => u.id === rowData.unitId)
-      if (!unit) {
-        throw new Error("Unidad no encontrada")
-      }
-
-      // Ya no hay categoría EXPENSAS, las expensas vienen del campo expensas del rowData
-      const manualExpensas = rowData.expensas ? Number(rowData.expensas) : 0
-      const finalExpensas = manualExpensas
-
-      console.log(`[Save] Guardando statement para unidad ${rowData.unitId} (${units.find(u => u.id === rowData.unitId)?.name}), período ${period}:`, {
-        alquiler: rowData.alquiler,
-        finalExpensas,
-      })
-
-      // Helper para convertir valores a números o undefined
-      const toNumberOrUndefined = (val: any): number | undefined => {
-        if (val === null || val === undefined || val === '') return undefined
-        const num = typeof val === 'string' ? parseFloat(val.trim()) : Number(val)
-        return isNaN(num) ? undefined : num
-      }
-
-      // Para OBRAS y OTROS: NO guardar valores en el statement, siempre calcularlos desde los gastos del período
-      // Esto evita duplicaciones y permite que los gastos se acumulen automáticamente
-      // Solo guardamos valores manuales si el usuario los ingresó directamente (sin gastos del período)
-      const unitExpenses = periodExpenses.filter((e: any) => e.unitId === rowData.unitId)
-      const obrasFromExpenses = unitExpenses.filter((e: any) => e.category === 'OBRAS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
-      const otrosFromExpenses = unitExpenses.filter((e: any) => e.category === 'OTROS').reduce((sum, e) => sum + (Number(e.amount) || 0), 0)
-
-      // Si hay gastos del período, no guardar valores manuales (se calcularán desde los gastos)
-      // Si no hay gastos del período pero hay valor manual, guardar el valor manual
-      const obrasManual = toNumberOrUndefined(rowData.obras) || 0
-      const otrosManual = toNumberOrUndefined(rowData.otrosTotal) || 0
-      
-      // Solo guardar si hay valor manual Y no hay gastos del período (para permitir valores manuales sin gastos)
-      // Si hay gastos del período, siempre usar undefined para que se calcule desde los gastos
-      const obrasToSave = obrasFromExpenses > 0 ? undefined : (obrasManual > 0 ? obrasManual : undefined)
-      const otrosToSave = otrosFromExpenses > 0 ? undefined : (otrosManual > 0 ? otrosManual : undefined)
-
-      const statementData = {
-        period,
-        unitId: rowData.unitId,
-        tenantId: rowData.tenantId || undefined,
-        alquiler: (rowData.alquiler !== null && rowData.alquiler !== undefined && rowData.alquiler !== '') 
-          ? Number(rowData.alquiler) 
-          : 0,
-        osse: toNumberOrUndefined(rowData.osse),
-        inmob: toNumberOrUndefined(rowData.inmob),
-        tsu: toNumberOrUndefined(rowData.tsu),
-        obras: obrasToSave,
-        otrosTotal: otrosToSave,
-        ivaAlquiler: toNumberOrUndefined(rowData.ivaAlquiler),
-        expensas: finalExpensas > 0 ? finalExpensas : undefined,
-        notes: rowData.notes || undefined,
-      }
-
-      console.log(`[Save] Datos del statement a guardar:`, statementData)
-
-      const savedStatement = await upsertStatement(statementData)
-
-      console.log(`[Save] Statement guardado exitosamente:`, {
-        id: savedStatement?.id,
-        unitId: savedStatement?.unitId,
-        period: savedStatement?.period,
-        alquiler: savedStatement?.alquiler,
-        totalMes: savedStatement?.totalMes,
-        neto: savedStatement?.neto,
-        neteado: savedStatement?.neteado
-      })
-
-      addToast({
-        title: "Liquidación guardada",
-        description: "La liquidación se ha guardado correctamente",
-      })
-
-      // Recargar statements del período actual
+      if (!unit) throw new Error("Unidad no encontrada")
+      const statementData = prepareStatementData(rowData)
+      await upsertStatement(statementData)
+      addToast({ title: "Liquidación guardada", description: "La liquidación se ha guardado correctamente" })
       const updatedStatements = await getStatements(period)
       setStatements(updatedStatements)
-
-      // Recargar resumen anual para que refleje los cambios de este mes
       setAnnualRefreshKey(k => k + 1)
       router.refresh()
       setEditingRow(null)
     } catch (error: any) {
+      addToast({ title: "Error", description: error.message || "No se pudo guardar la liquidación", variant: "destructive" })
+    }
+  }
+
+  const handleSaveAll = async () => {
+    if (rows.length === 0) return
+    setSavingAll(true)
+    try {
+      let saved = 0
+      for (const row of rows) {
+        const unit = units.find(u => u.id === row.unitId)
+        if (!unit) continue
+        const statementData = prepareStatementData(row)
+        await upsertStatement(statementData)
+        saved++
+      }
       addToast({
-        title: "Error",
-        description: error.message || "No se pudo guardar la liquidación",
-        variant: "destructive",
+        title: "Liquidación guardada",
+        description: `Se guardaron ${saved} unidad${saved !== 1 ? 'es' : ''} correctamente`,
       })
+      const updatedStatements = await getStatements(period)
+      setStatements(updatedStatements)
+      setAnnualRefreshKey(k => k + 1)
+      router.refresh()
+    } catch (error: any) {
+      addToast({ title: "Error", description: error.message || "No se pudo guardar la liquidación", variant: "destructive" })
+    } finally {
+      setSavingAll(false)
     }
   }
 
@@ -871,13 +854,23 @@ export function StatementsPage({
                 El <strong>Período</strong> de arriba define el mes que estás editando: liquidación y gastos son de ese mismo mes. Guardá cada mes para que sume en el resumen anual.
               </p>
             </div>
-            <Button
-              onClick={() => setShowExpenseDialog(true)}
-              className="bg-[#1B5E20] hover:bg-[#2E7D32] text-white ml-4"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Gasto
-            </Button>
+            <div className="flex gap-2 ml-4">
+              <Button
+                onClick={handleSaveAll}
+                disabled={savingAll || rows.length === 0}
+                className="bg-[#2E7D32] hover:bg-[#388E3C] text-white"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingAll ? "Guardando..." : "Guardar todo"}
+              </Button>
+              <Button
+                onClick={() => setShowExpenseDialog(true)}
+                className="bg-[#1B5E20] hover:bg-[#2E7D32] text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar Gasto
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
