@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Fix auth route (evita error de tipos con wrap/caché en Vercel)
-const routePath = path.join(__dirname, 'app', 'api', 'auth', '[...nextauth]', 'route.ts');
+const routePath = path.resolve(process.cwd(), 'app', 'api', 'auth', '[...nextauth]', 'route.ts');
 const routeContent = `import type { NextRequest } from "next/server"
 import { handlers } from "@/lib/auth"
 
