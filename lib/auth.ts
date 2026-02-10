@@ -64,12 +64,36 @@ function wrapAdapter<T extends object>(adapter: T): T {
 const baseAdapter = PrismaAdapter(prisma)
 
 const authUrl = (process.env.AUTH_URL || process.env.NEXTAUTH_URL)?.replace(/\/$/, "")
+const isProd = process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: wrapAdapter(baseAdapter) as typeof baseAdapter,
   trustHost: true,
   basePath: "/api/auth",
   ...(authUrl && { url: authUrl }), // En Vercel: AUTH_URL=https://tu-dominio.vercel.app
+  // Fix PKCE cookie en Vercel: configuración explícita para evitar "cookie was missing"
+  cookies: isProd
+    ? {
+        pkceCodeVerifier: {
+          options: {
+            secure: true,
+            sameSite: "lax",
+            path: "/",
+            maxAge: 900,
+            httpOnly: true,
+          },
+        },
+        state: {
+          options: {
+            secure: true,
+            sameSite: "lax",
+            path: "/",
+            maxAge: 900,
+            httpOnly: true,
+          },
+        },
+      }
+    : undefined,
   debug: authDebug || process.env.NODE_ENV === "development",
   logger: {
     error(err: Error) {
