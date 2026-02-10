@@ -1,8 +1,15 @@
 "use client"
 
+import { useEffect } from "react"
 import { signIn } from "next-auth/react"
 
 export default function SignInPage() {
+  // Warm-up: evita que la primera petición OAuth falle por cold start en Vercel.
+  // Al cargar la página, hacemos una petición que "calienta" las rutas de auth.
+  useEffect(() => {
+    fetch("/api/auth/csrf").catch(() => {})
+  }, [])
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
       <div

@@ -1,17 +1,28 @@
 "use client"
 
-import { Suspense, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { Suspense, useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 function AuthErrorContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const error = searchParams.get("error") || ""
   const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null)
   const [loadingDebug, setLoadingDebug] = useState(false)
 
   const isConfiguration = error === "Configuration"
+
+  // Auto-redirigir a sign-in: el primer intento falla por cold start en Vercel,
+  // pero al reintentar funciona. Redirigimos automáticamente para que el usuario
+  // llegue a sign-in con las funciones ya calientes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      router.replace("/auth/signin")
+    }, 800)
+    return () => clearTimeout(t)
+  }, [router])
 
   const fetchDebugError = async () => {
     setLoadingDebug(true)
@@ -38,6 +49,7 @@ function AuthErrorContent() {
             {isConfiguration
               ? "Hay un problema con la configuración del servidor."
               : "Ocurrió un error durante el inicio de sesión."}
+            <span className="block mt-2 font-medium">Redirigiendo al login para reintentar...</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
