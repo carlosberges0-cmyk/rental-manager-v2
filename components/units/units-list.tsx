@@ -507,25 +507,6 @@ function EditUnitDialog({
               Estos porcentajes se usarán para calcular automáticamente los impuestos sobre el precio de alquiler.
             </p>
           </div>
-          
-          {/* Monthly Expenses Section */}
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Expensas Mensuales (opcional)</h3>
-            <div>
-              <Label htmlFor="monthlyExpensesAmount" className="text-gray-900">Monto Mensual de Expensas</Label>
-              <Input
-                id="monthlyExpensesAmount"
-                type="number"
-                step="0.01"
-                placeholder="0"
-                value={formData.monthlyExpensesAmount}
-                onChange={(e) => setFormData({ ...formData, monthlyExpensesAmount: e.target.value })}
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Este monto se descontará mensualmente en el balance de la unidad.
-              </p>
-            </div>
-          </div>
 
           {/* Superficie */}
           <div className="border-t pt-4">

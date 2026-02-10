@@ -1,3 +1,7 @@
+"use client"
+
+import { signIn } from "next-auth/react"
+
 export default function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
@@ -11,16 +15,19 @@ export default function SignInPage() {
         <p className="text-sm mb-6" style={{ color: "#4b5563" }}>
           Usa tu cuenta de Google para acceder
         </p>
-        <a
-          href="/api/auth/signin/google?callbackUrl=%2F"
-          className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium transition-colors no-underline"
+        <button
+          type="button"
+          onClick={() => signIn("google", { callbackUrl: "/" })}
+          className="block w-full rounded-md px-4 py-2.5 text-center text-sm font-medium transition-colors"
           style={{
             backgroundColor: "#1B5E20",
             color: "#ffffff",
+            border: "none",
+            cursor: "pointer",
           }}
         >
           Continuar con Google
-        </a>
+        </button>
       </div>
     </div>
   )

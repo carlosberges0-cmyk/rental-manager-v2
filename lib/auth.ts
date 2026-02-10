@@ -8,8 +8,8 @@ import { prisma } from "@/lib/prisma"
  * Env vars (Auth.js v5): AUTH_SECRET, AUTH_URL, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, AUTH_TRUST_HOST.
  */
 
-const googleId = process.env.AUTH_GOOGLE_ID?.trim()
-const googleSecret = process.env.AUTH_GOOGLE_SECRET?.trim()
+const googleId = (process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID)?.trim()
+const googleSecret = (process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET)?.trim()
 
 const authDebug = process.env.AUTH_DEBUG === "true"
 
