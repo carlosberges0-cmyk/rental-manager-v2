@@ -5,7 +5,7 @@
   "scripts": {
     "migrate:expense-category": "tsx scripts/run-expense-category-migration.ts",
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "node scripts/ensure-auth-route.js && prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "node postinstall.js",
