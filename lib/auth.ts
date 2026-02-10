@@ -102,7 +102,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers:
     googleId && googleSecret
-      ? [Google({ clientId: googleId, clientSecret: googleSecret })]
+      ? [Google({ clientId: googleId, clientSecret: googleSecret, checks: ["state"] })]
       : [],
   pages: {
     signIn: "/auth/signin",

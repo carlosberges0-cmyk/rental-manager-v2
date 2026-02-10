@@ -139,49 +139,6 @@ export function CreateUnitDialog({ open, onOpenChange, onSuccess, propertyGroups
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
             />
           </div>
-          
-          {/* Tax Rates Section */}
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Porcentajes de Impuestos a Cobrar (opcional)</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="ivaRatePercent" className="text-gray-900">IVA %</Label>
-                <Input
-                  id="ivaRatePercent"
-                  type="number"
-                  step="0.01"
-                  placeholder="21"
-                  value={formData.ivaRatePercent}
-                  onChange={(e) => setFormData({ ...formData, ivaRatePercent: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="igRatePercent" className="text-gray-900">IG %</Label>
-                <Input
-                  id="igRatePercent"
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  value={formData.igRatePercent}
-                  onChange={(e) => setFormData({ ...formData, igRatePercent: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="iibbRatePercent" className="text-gray-900">IIBB %</Label>
-                <Input
-                  id="iibbRatePercent"
-                  type="number"
-                  step="0.01"
-                  placeholder="0"
-                  value={formData.iibbRatePercent}
-                  onChange={(e) => setFormData({ ...formData, iibbRatePercent: e.target.value })}
-                />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Estos porcentajes se usarán para calcular automáticamente los impuestos sobre el precio de alquiler.
-            </p>
-          </div>
 
           {/* Superficie */}
           <div className="border-t pt-4">
