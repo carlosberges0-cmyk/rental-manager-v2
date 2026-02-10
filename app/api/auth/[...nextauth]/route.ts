@@ -1,9 +1,10 @@
+import type { NextRequest } from "next/server"
 import { handlers } from "@/lib/auth"
 
 /** Wrapper que captura cualquier error no manejado en el flujo de auth. */
 async function wrap(
-  fn: (req: Request) => Promise<Response>,
-  req: Request
+  fn: (req: NextRequest) => Promise<Response>,
+  req: NextRequest
 ): Promise<Response> {
   try {
     return await fn(req)
@@ -23,10 +24,10 @@ async function wrap(
   }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   return wrap(handlers.GET, req)
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   return wrap(handlers.POST, req)
 }
