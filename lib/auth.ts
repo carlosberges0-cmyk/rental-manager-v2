@@ -36,11 +36,8 @@ const googleSecret = (
 )?.trim()
 const hasGoogle = !!(googleId && googleSecret)
 
-// Debug logging (no secrets) — only in non-production or when AUTH_DEBUG=true
-const shouldLog =
-  process.env.NODE_ENV !== "production" ||
-  process.env.VERCEL_ENV === "preview" ||
-  process.env.AUTH_DEBUG === "true"
+// Debug logging (no secrets) — when AUTH_DEBUG=true
+const shouldLog = process.env.AUTH_DEBUG === "true"
 if (shouldLog) {
   console.log("[auth] Env check:", {
     hasSecret,
@@ -125,6 +122,12 @@ function wrapWithErrorLogging(
   handler: (req: Request) => Promise<Response> | Response,
 ): (req: Request) => Promise<Response> {
   return async (req: Request) => {
+    if (shouldLog) {
+      const url = new URL(req.url)
+      if (url.pathname.includes("/error")) {
+        console.log("[auth] /api/auth/error request:", { error: url.searchParams.get("error") ?? "(none)" })
+      }
+    }
     try {
       return await handler(req)
     } catch (err) {
