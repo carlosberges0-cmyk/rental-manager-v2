@@ -454,9 +454,9 @@ export function ExpensesList({ initialExpenses, units, rentalPeriods = [] }: Exp
                         </div>
                       )}
                       
-                      {expense.deductibleFlag && (
+                      {expense.paidByTenant && (
                         <div className="inline-block mt-2 px-2 py-1 text-xs rounded" style={{ backgroundColor: '#E8F5E9', color: '#1B5E20' }}>
-                          ✓ Deducible
+                          ✓ Pago por el inquilino
                         </div>
                       )}
                     </div>
@@ -695,18 +695,17 @@ function ExpenseDialog({
             />
           </div>
           
-          {["TSU", "INMOB", "OBRAS"].includes(formData.category) && (
-            <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.paidByTenant}
-                  onChange={(e) => setFormData({ ...formData, paidByTenant: e.target.checked })}
-                />
-                <span className="text-sm font-medium text-gray-900">Pago por el inquilino</span>
-              </label>
-            </div>
-          )}
+          <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={formData.paidByTenant}
+                onChange={(e) => setFormData({ ...formData, paidByTenant: e.target.checked })}
+              />
+              <span className="text-sm font-medium text-gray-900">Pago por el inquilino</span>
+            </label>
+            <p className="text-xs text-gray-500">Solo aplica a TSU, Inmob, Obras</p>
+          </div>
           
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

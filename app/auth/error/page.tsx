@@ -70,11 +70,11 @@ function AuthErrorContent() {
               </div>
             </div>
           )}
-          <div className="flex gap-2">
-            <Button asChild>
-              <Link href="/auth/signin">Volver a intentar</Link>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild className="text-white" style={{ backgroundColor: "#1B5E20" }}>
+              <Link href="/auth/signin" className="text-white hover:text-white">Volver a intentar</Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="border-gray-400 text-gray-900 hover:bg-gray-100">
               <Link href="/">Ir al inicio</Link>
             </Button>
           </div>
