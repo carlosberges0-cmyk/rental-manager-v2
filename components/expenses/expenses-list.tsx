@@ -695,26 +695,18 @@ function ExpenseDialog({
             />
           </div>
           
-          <div className="flex flex-col gap-3">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.deductibleFlag}
-                onChange={(e) => setFormData({ ...formData, deductibleFlag: e.target.checked })}
-              />
-              <span className="text-sm text-gray-900">Deducible</span>
-            </label>
-            {["TSU", "INMOB", "OBRAS"].includes(formData.category) && (
+          {["TSU", "INMOB", "OBRAS"].includes(formData.category) && (
+            <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={formData.paidByTenant}
                   onChange={(e) => setFormData({ ...formData, paidByTenant: e.target.checked })}
                 />
-                <span className="text-sm text-gray-900">Pago por el inquilino</span>
+                <span className="text-sm font-medium text-gray-900">Pago por el inquilino</span>
               </label>
-            )}
-          </div>
+            </div>
+          )}
           
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

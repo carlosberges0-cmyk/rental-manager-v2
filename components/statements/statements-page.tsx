@@ -1548,24 +1548,16 @@ function ExpenseDialog({
             />
           </div>
           
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.deductibleFlag}
-                onChange={(e) => setFormData({ ...formData, deductibleFlag: e.target.checked })}
-              />
-              <span className="text-sm text-gray-900">Deducible</span>
-            </label>
+          <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={formData.paidByTenant}
                 onChange={(e) => setFormData({ ...formData, paidByTenant: e.target.checked })}
               />
-              <span className="text-sm text-gray-900 font-medium">Pago por el inquilino</span>
+              <span className="text-sm font-medium text-gray-900">Pago por el inquilino</span>
             </label>
-            <p className="text-xs text-gray-500">Si está marcado, el gasto se suma como ingreso y luego se resta en gastos (solo para TSU, Inmob, Obras)</p>
+            <p className="text-xs text-gray-500">Si está marcado, el gasto se suma como ingreso y luego se resta (solo aplica a TSU, Inmob, Obras)</p>
           </div>
           
           <div className="flex justify-end gap-2 pt-4 border-t">
