@@ -1,0 +1,3 @@
+{
+  "buildCommand": "prisma generate && prisma migrate deploy && rm -rf .next .tsbuildinfo && next build"
+}
