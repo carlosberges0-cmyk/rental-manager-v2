@@ -322,7 +322,7 @@ export async function getExpenses(unitId?: string, month?: string) {
     month: string
     date?: Date | string | null
     category: string
-    description: string
+    description: string | null
     amount?: unknown
     totalAmount?: unknown
     currency: string
@@ -368,7 +368,7 @@ export async function getExpenses(unitId?: string, month?: string) {
       month: expense.month,
       date: expense.date instanceof Date ? expense.date.toISOString() : (expense.date ? String(expense.date) : null),
       category: expense.category,
-      description: expense.description,
+      description: expense.description ?? "",
       amount: amountNum !== null && amountNum !== undefined ? amountNum : 0,
       currency: expense.currency,
       deductibleFlag: expense.deductibleFlag,
