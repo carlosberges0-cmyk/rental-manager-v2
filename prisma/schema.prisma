@@ -221,7 +221,7 @@ model MonthlyExpense {
   month           String          // YYYY-MM format
   date            DateTime        @default(now()) // Specific date when expense was incurred
   category        ExpenseCategory
-  description     String
+  description     String?
   amount          Decimal         @db.Decimal(10, 2)
   currency        Currency
   deductibleFlag  Boolean         @default(false)

@@ -665,12 +665,12 @@ function ExpenseDialog({
           </div>
           
           <div>
-            <Label htmlFor="description" className="text-gray-900">Descripción *</Label>
+            <Label htmlFor="description" className="text-gray-900">Descripción</Label>
             <Input
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              required
+              placeholder="Opcional"
             />
           </div>
           

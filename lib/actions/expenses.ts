@@ -11,7 +11,7 @@ const expenseSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/), // YYYY-MM
   date: z.string().or(z.date()).optional(),
   category: z.enum(["OSSE", "INMOB", "TSU", "OBRAS", "OTROS"]),
-  description: z.string().min(1),
+  description: z.string().optional().default(""),
   amount: z.number().or(z.string()),
   currency: z.enum(["ARS", "USD"]),
   deductibleFlag: z.boolean().optional(),
@@ -62,7 +62,7 @@ export async function createExpense(data: z.infer<typeof expenseSchema>) {
       month: validated.month,
       date: expenseDate,
       category: validated.category,
-      description: validated.description,
+      description: validated.description?.trim() || null,
       amount,
       currency: validated.currency,
       deductibleFlag: validated.deductibleFlag ?? false,
@@ -164,7 +164,7 @@ export async function updateExpense(
     updateData.date = data.date instanceof Date ? data.date : new Date(data.date)
   }
   if (data.category) updateData.category = data.category
-  if (data.description) updateData.description = data.description
+  if (data.description !== undefined) updateData.description = data.description?.trim() || null
   
   // Update amount if provided
   if (data.amount !== undefined) {
