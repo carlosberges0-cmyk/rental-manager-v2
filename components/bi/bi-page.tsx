@@ -177,7 +177,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   }))
 
   // Calculate metrics per unit for the selected year
-  const unitMetrics = useMemo(() => {
+  const unitMetricsResult = useMemo(() => {
     const yearStart = startOfYear(new Date(selectedYear, 0, 1))
     const yearEnd = endOfYear(new Date(selectedYear, 11, 31))
     const metrics: Record<string, {
@@ -318,19 +318,21 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       metric.occupancyRate = 365 > 0 ? (metric.occupancyDays / 365) * 100 : 0
     })
 
-    // Filtrar métricas que tienen datos
+    // Filtrar métricas que tienen datos (para tablas y otros gráficos)
     const finalMetrics = Object.values(metrics).filter(m =>
       m.income > 0 || m.expenses > 0 || m.expensas > 0 || m.manualExpenses > 0
     )
-    
-    // Ordenar por nombre y luego por ingresos (puede haber múltiples unidades con el mismo nombre)
-    return finalMetrics.sort((a, b) => {
+    const allMetrics = Object.values(metrics)
+    const sorter = (a: typeof allMetrics[0], b: typeof allMetrics[0]) => {
       const nameCompare = (a.unit.name || "").localeCompare(b.unit.name || "")
       if (nameCompare !== 0) return nameCompare
-      // Si tienen el mismo nombre, ordenar por ID para consistencia
       return a.unit.id.localeCompare(b.unit.id)
-    })
+    }
+    return { filtered: finalMetrics.sort(sorter), all: allMetrics.sort(sorter) }
   }, [units, statementsByYear, rentalPeriods, expenses, selectedYear, selectedCurrency])
+
+  const unitMetrics = unitMetricsResult.filtered
+  const unitMetricsAll = unitMetricsResult.all
 
   // Prepare comparison chart data (por unidad)
   const comparisonChartData = unitMetrics.map(metric => ({
@@ -372,13 +374,13 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     return rows
   }, [groupMetrics, ytdMargin])
 
-  // Ganancia/m² por unidad (solo unidades con m2 cargado)
+  // Ganancia/m² por unidad: todas las unidades con m² (aunque tengan 0 en el año)
   const gananciaPorM2ChartData = useMemo(() => {
-    return unitMetrics
+    return unitMetricsAll
       .filter(m => m.unit.metrosCuadrados != null && Number(m.unit.metrosCuadrados) > 0)
       .map(m => ({ name: m.unit.name, "Ganancia/m²": Math.round(m.gananciaPorM2) }))
       .sort((a, b) => b["Ganancia/m²"] - a["Ganancia/m²"])
-  }, [unitMetrics])
+  }, [unitMetricsAll])
 
   // Evolución ganancia/m² por mes (por unidad con m2)
   const evolucionGananciaM2Data = useMemo(() => {
@@ -426,22 +428,30 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     const stmts = (statementsByYear[selectedYear] || []).filter(
       (s: StatementClient) => s.period === effectivePeriod && (!s.currency || s.currency === selectedCurrency)
     )
-    const rows: { name: string; "Precio/m²": number; "Margen/m²": number; "Margen %": number }[] = []
-    stmts.forEach((s: StatementClient) => {
-      const m2 = s.unit?.metrosCuadrados != null ? Number(s.unit.metrosCuadrados) : 0
-      if (m2 <= 0) return
-      const totalMes = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
-      const neto = s.neto != null ? Number(s.neto) : (s.neteado != null ? Number(s.neteado) : 0)
-      const name = s.unit?.name || units.find(u => u.id === s.unitId)?.name || s.unitId
-      const precioM2 = totalMes / m2
-      const margenM2 = neto / m2
-      const margenPct = totalMes > 0 ? (neto / totalMes) * 100 : 0
-      rows.push({
-        name,
-        "Precio/m²": Math.round(precioM2),
-        "Margen/m²": Math.round(margenM2),
-        "Margen %": Math.round(margenPct * 10) / 10,
-      })
+    const stmtByUnitId = new Map(stmts.map((s: StatementClient) => [s.unitId, s]))
+    const unitsWithM2 = units.filter(u => u.metrosCuadrados != null && Number(u.metrosCuadrados) > 0)
+    const rows: { name: string; "Precio/m²": number; "Margen/m²": number; "Margen %": number }[] = unitsWithM2.map(u => {
+      const s = stmtByUnitId.get(u.id)
+      const m2 = Number(u.metrosCuadrados)
+      if (s) {
+        const totalMes = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
+        const neto = s.neto != null ? Number(s.neto) : (s.neteado != null ? Number(s.neteado) : 0)
+        const precioM2 = totalMes / m2
+        const margenM2 = neto / m2
+        const margenPct = totalMes > 0 ? (neto / totalMes) * 100 : 0
+        return {
+          name: u.name || u.id,
+          "Precio/m²": Math.round(precioM2),
+          "Margen/m²": Math.round(margenM2),
+          "Margen %": Math.round(margenPct * 10) / 10,
+        }
+      }
+      return {
+        name: u.name || u.id,
+        "Precio/m²": 0,
+        "Margen/m²": 0,
+        "Margen %": 0,
+      }
     })
     const sortKey = chartSortBy === "precioM2" ? "Precio/m²" : chartSortBy === "margenM2" ? "Margen/m²" : "Margen %"
     const sorted = [...rows].sort((a, b) => {
@@ -546,7 +556,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         <CardHeader className="bg-white border-b border-gray-200">
           <CardTitle className="text-gray-900">Precio/m², Margen/m² y Margen % por Unidad (por período)</CardTitle>
           <CardDescription className="text-gray-600">
-            Elegí el período y ordená por precio/m², margen/m² o margen %. Solo se muestran unidades con m² cargado y con liquidación en ese mes.
+            Elegí el período y ordená por precio/m², margen/m² o margen %. Se muestran todas las unidades con m² cargado (en 0 si no hay liquidación en ese mes).
           </CardDescription>
           <div className="flex flex-wrap items-center gap-4 mt-3">
             <div className="flex items-center gap-2">
