@@ -27,7 +27,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   const [selectedYear, setSelectedYear] = useState(currentYear)
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("ARS")
   const [selectedPeriod, setSelectedPeriod] = useState(currentMonth)
-  const [chartSortBy, setChartSortBy] = useState<"precioM2" | "margenPct">("margenPct")
+  const [chartSortBy, setChartSortBy] = useState<"precioM2" | "margenM2" | "margenPct">("margenPct")
   const [chartSortOrder, setChartSortOrder] = useState<"desc" | "asc">("desc")
 
   // Calculate KPIs
@@ -426,7 +426,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     const stmts = (statementsByYear[selectedYear] || []).filter(
       (s: StatementClient) => s.period === effectivePeriod && (!s.currency || s.currency === selectedCurrency)
     )
-    const rows: { name: string; "Precio/m²": number; "Margen %": number }[] = []
+    const rows: { name: string; "Precio/m²": number; "Margen/m²": number; "Margen %": number }[] = []
     stmts.forEach((s: StatementClient) => {
       const m2 = s.unit?.metrosCuadrados != null ? Number(s.unit.metrosCuadrados) : 0
       if (m2 <= 0) return
@@ -434,12 +434,18 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       const neto = s.neto != null ? Number(s.neto) : (s.neteado != null ? Number(s.neteado) : 0)
       const name = s.unit?.name || units.find(u => u.id === s.unitId)?.name || s.unitId
       const precioM2 = totalMes / m2
+      const margenM2 = neto / m2
       const margenPct = totalMes > 0 ? (neto / totalMes) * 100 : 0
-      rows.push({ name, "Precio/m²": Math.round(precioM2), "Margen %": Math.round(margenPct * 10) / 10 })
+      rows.push({
+        name,
+        "Precio/m²": Math.round(precioM2),
+        "Margen/m²": Math.round(margenM2),
+        "Margen %": Math.round(margenPct * 10) / 10,
+      })
     })
+    const sortKey = chartSortBy === "precioM2" ? "Precio/m²" : chartSortBy === "margenM2" ? "Margen/m²" : "Margen %"
     const sorted = [...rows].sort((a, b) => {
-      const key = chartSortBy === "precioM2" ? "Precio/m²" : "Margen %"
-      const diff = a[key] - b[key]
+      const diff = a[sortKey] - b[sortKey]
       return chartSortOrder === "desc" ? -diff : diff
     })
     return sorted
@@ -538,9 +544,9 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       {/* Gráfico por período: Precio/m² y Margen % por unidad, orden configurable */}
       <Card className="border border-gray-200 mb-6">
         <CardHeader className="bg-white border-b border-gray-200">
-          <CardTitle className="text-gray-900">Precio/m² y Margen % por Unidad (por período)</CardTitle>
+          <CardTitle className="text-gray-900">Precio/m², Margen/m² y Margen % por Unidad (por período)</CardTitle>
           <CardDescription className="text-gray-600">
-            Elegí el mes y ordená por precio por m² o por margen. Solo se muestran unidades con m² cargado y con liquidación en ese mes.
+            Elegí el período y ordená por precio/m², margen/m² o margen %. Solo se muestran unidades con m² cargado y con liquidación en ese mes.
           </CardDescription>
           <div className="flex flex-wrap items-center gap-4 mt-3">
             <div className="flex items-center gap-2">
@@ -558,10 +564,11 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
               <select
                 id="bi-sort"
                 value={chartSortBy}
-                onChange={(e) => setChartSortBy(e.target.value as "precioM2" | "margenPct")}
+                onChange={(e) => setChartSortBy(e.target.value as "precioM2" | "margenM2" | "margenPct")}
                 className="flex h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm w-36"
               >
                 <option value="precioM2">Precio/m²</option>
+                <option value="margenM2">Margen/m²</option>
                 <option value="margenPct">Margen %</option>
               </select>
             </div>
@@ -589,13 +596,19 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                 <Tooltip
                   formatter={(value: number | undefined, name: string | undefined) => {
                     const label = name ?? ""
-                    const text = label === "Precio/m²" ? `${value != null ? value.toLocaleString() : 0} ${selectedCurrency}/m²` : `${value ?? 0}%`
+                    let text: string
+                    if (label === "Precio/m²" || label === "Margen/m²") {
+                      text = `${value != null ? value.toLocaleString() : 0} ${selectedCurrency}/m²`
+                    } else {
+                      text = `${value ?? 0}%`
+                    }
                     return [text, label]
                   }}
                 />
                 <Legend />
                 <Bar dataKey="Precio/m²" fill="#1B5E20" name="Precio/m²" radius={[0, 4, 4, 0]} />
-                <Bar dataKey="Margen %" fill="#2E7D32" name="Margen %" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="Margen/m²" fill="#2E7D32" name="Margen/m²" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="Margen %" fill="#66BB6A" name="Margen %" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
