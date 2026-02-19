@@ -159,23 +159,6 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     }
   })
 
-  // Prepare expenses by category chart
-  const expensesByCategory: Record<string, number> = {}
-  expenses
-    .filter((e) => e.currency === selectedCurrency)
-    .forEach((expense) => {
-      const amount = typeof expense.amount === 'number' 
-        ? expense.amount 
-        : Number(expense.amount) || 0
-      expensesByCategory[expense.category] =
-        Number(expensesByCategory[expense.category] || 0) + Number(amount)
-    })
-
-  const categoryData = Object.entries(expensesByCategory).map(([category, amount]) => ({
-    category,
-    amount,
-  }))
-
   // Calculate metrics per unit for the selected year
   const unitMetricsResult = useMemo(() => {
     const yearStart = startOfYear(new Date(selectedYear, 0, 1))
@@ -715,23 +698,6 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                 <Line type="monotone" dataKey="Ingresos" stroke="#1B5E20" strokeWidth={2} />
                 <Line type="monotone" dataKey="Gastos" stroke="#dc2626" strokeWidth={2} />
               </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-gray-200">
-          <CardHeader className="bg-white border-b border-gray-200">
-            <CardTitle className="text-gray-900">Gastos por Categoría</CardTitle>
-          </CardHeader>
-          <CardContent className="bg-white">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="category" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip />
-                <Bar dataKey="amount" fill="#1B5E20" />
-              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
