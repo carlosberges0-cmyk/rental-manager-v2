@@ -587,10 +587,11 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                 <XAxis type="number" stroke="#6b7280" />
                 <YAxis type="category" dataKey="name" width={140} stroke="#6b7280" tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value: number | undefined, name: string) => [
-                    name === "Precio/m²" ? `${value != null ? value.toLocaleString() : 0} ${selectedCurrency}/m²` : `${value ?? 0}%`,
-                    name,
-                  ]}
+                  formatter={(value: number | undefined, name: string | undefined) => {
+                    const label = name ?? ""
+                    const text = label === "Precio/m²" ? `${value != null ? value.toLocaleString() : 0} ${selectedCurrency}/m²` : `${value ?? 0}%`
+                    return [text, label]
+                  }}
                 />
                 <Legend />
                 <Bar dataKey="Precio/m²" fill="#1B5E20" name="Precio/m²" radius={[0, 4, 4, 0]} />
