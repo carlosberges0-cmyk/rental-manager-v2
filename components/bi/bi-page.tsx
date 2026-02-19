@@ -1,14 +1,16 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "date-fns"
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
-type StatementClient = { period: string; unitId: string; alquiler: number; neteado?: number | null; expensas?: number | null; currency?: string; unit?: { name?: string; propertyGroup?: { id: string; name: string } | null; metrosCuadrados?: number | null } | null }
+type StatementClient = { period: string; unitId: string; alquiler: number; totalMes?: number; neto?: number | null; neteado?: number | null; expensas?: number | null; currency?: string; unit?: { name?: string; propertyGroup?: { id: string; name: string } | null; metrosCuadrados?: number | null } | null }
 
 interface BIPageProps {
   taxData: TaxDataUI
@@ -20,11 +22,15 @@ interface BIPageProps {
 }
 
 export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalPeriods, expenses, units, propertyGroups = [] }: BIPageProps) {
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const currentYear = new Date().getFullYear()
+  const currentMonth = format(new Date(), "yyyy-MM")
+  const [selectedYear, setSelectedYear] = useState(currentYear)
   const [selectedCurrency, setSelectedCurrency] = useState<"ARS" | "USD">("ARS")
+  const [selectedPeriod, setSelectedPeriod] = useState(currentMonth)
+  const [chartSortBy, setChartSortBy] = useState<"precioM2" | "margenPct">("margenPct")
+  const [chartSortOrder, setChartSortOrder] = useState<"desc" | "asc">("desc")
 
   // Calculate KPIs
-  const currentYear = new Date().getFullYear()
   const taxData = initialTaxData || { income: 0, expenses: 0, ivaAmount: 0, iibbAmount: 0, igEstimate: 0, deductibleExpenses: 0, incomeByMonth: {}, expensesByMonth: {} }
   
   // Ingresos y expensas desde liquidaciones (statements)
@@ -404,6 +410,41 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     return Object.values(byMonth)
   }, [statementsByYear, selectedYear, selectedCurrency, units])
 
+  // Gráfico por filas (unidad): Precio/m² y Margen % para el período elegido, orden configurable
+  const effectivePeriod = useMemo(() => {
+    const periodYear = selectedPeriod ? parseInt(selectedPeriod.slice(0, 4), 10) : selectedYear
+    if (periodYear !== selectedYear) return format(new Date(selectedYear, 0, 1), "yyyy-MM")
+    return selectedPeriod
+  }, [selectedPeriod, selectedYear])
+
+  useEffect(() => {
+    const periodYear = selectedPeriod ? parseInt(selectedPeriod.slice(0, 4), 10) : selectedYear
+    if (periodYear !== selectedYear) setSelectedPeriod(format(new Date(selectedYear, 0, 1), "yyyy-MM"))
+  }, [selectedYear])
+
+  const rowChartDataByPeriod = useMemo(() => {
+    const stmts = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => s.period === effectivePeriod && (!s.currency || s.currency === selectedCurrency)
+    )
+    const rows: { name: string; "Precio/m²": number; "Margen %": number }[] = []
+    stmts.forEach((s: StatementClient) => {
+      const m2 = s.unit?.metrosCuadrados != null ? Number(s.unit.metrosCuadrados) : 0
+      if (m2 <= 0) return
+      const totalMes = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
+      const neto = s.neto != null ? Number(s.neto) : (s.neteado != null ? Number(s.neteado) : 0)
+      const name = s.unit?.name || units.find(u => u.id === s.unitId)?.name || s.unitId
+      const precioM2 = totalMes / m2
+      const margenPct = totalMes > 0 ? (neto / totalMes) * 100 : 0
+      rows.push({ name, "Precio/m²": Math.round(precioM2), "Margen %": Math.round(margenPct * 10) / 10 })
+    })
+    const sorted = [...rows].sort((a, b) => {
+      const key = chartSortBy === "precioM2" ? "Precio/m²" : "Margen %"
+      const diff = a[key] - b[key]
+      return chartSortOrder === "desc" ? -diff : diff
+    })
+    return sorted
+  }, [statementsByYear, selectedYear, selectedCurrency, effectivePeriod, units, chartSortBy, chartSortOrder])
+
   return (
     <div className="container mx-auto p-6 bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
@@ -411,24 +452,32 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
           <h1 className="text-3xl font-bold text-gray-900">Business Intelligence</h1>
           <p className="text-gray-600 mt-1">Análisis y métricas de tu negocio</p>
         </div>
-        <div className="flex gap-2">
-          <Select
-            value={selectedYear.toString()}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          >
-            {Array.from({ length: 5 }, (_, i) => currentYear - i).map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={selectedCurrency}
-            onChange={(e) => setSelectedCurrency(e.target.value as "ARS" | "USD")}
-          >
-            <option value="ARS">ARS</option>
-            <option value="USD">USD</option>
-          </Select>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="bi-year" className="text-sm font-medium text-gray-700">Año</Label>
+            <select
+              id="bi-year"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="flex h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
+            >
+              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="bi-currency" className="text-sm font-medium text-gray-700">Moneda</Label>
+            <select
+              id="bi-currency"
+              value={selectedCurrency}
+              onChange={(e) => setSelectedCurrency(e.target.value as "ARS" | "USD")}
+              className="flex h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
+            >
+              <option value="ARS">ARS</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -485,6 +534,76 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
           </CardContent>
         </Card>
       </div>
+
+      {/* Gráfico por período: Precio/m² y Margen % por unidad, orden configurable */}
+      <Card className="border border-gray-200 mb-6">
+        <CardHeader className="bg-white border-b border-gray-200">
+          <CardTitle className="text-gray-900">Precio/m² y Margen % por Unidad (por período)</CardTitle>
+          <CardDescription className="text-gray-600">
+            Elegí el mes y ordená por precio por m² o por margen. Solo se muestran unidades con m² cargado y con liquidación en ese mes.
+          </CardDescription>
+          <div className="flex flex-wrap items-center gap-4 mt-3">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="bi-period" className="text-sm font-medium">Período</Label>
+              <Input
+                id="bi-period"
+                type="month"
+                value={effectivePeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="w-40 h-10"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="bi-sort" className="text-sm font-medium">Ordenar por</Label>
+              <select
+                id="bi-sort"
+                value={chartSortBy}
+                onChange={(e) => setChartSortBy(e.target.value as "precioM2" | "margenPct")}
+                className="flex h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm w-36"
+              >
+                <option value="precioM2">Precio/m²</option>
+                <option value="margenPct">Margen %</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="bi-order" className="text-sm font-medium">Orden</Label>
+              <select
+                id="bi-order"
+                value={chartSortOrder}
+                onChange={(e) => setChartSortOrder(e.target.value as "desc" | "asc")}
+                className="flex h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm w-40"
+              >
+                <option value="desc">Mayor a menor</option>
+                <option value="asc">Menor a mayor</option>
+              </select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="bg-white pt-4">
+          {rowChartDataByPeriod.length > 0 ? (
+            <ResponsiveContainer width="100%" height={Math.max(300, rowChartDataByPeriod.length * 36)}>
+              <BarChart data={rowChartDataByPeriod} layout="vertical" margin={{ left: 20, right: 30 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis type="number" stroke="#6b7280" />
+                <YAxis type="category" dataKey="name" width={140} stroke="#6b7280" tick={{ fontSize: 12 }} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    name === "Precio/m²" ? `${value?.toLocaleString() ?? 0} ${selectedCurrency}/m²` : `${value ?? 0}%`,
+                    name,
+                  ]}
+                />
+                <Legend />
+                <Bar dataKey="Precio/m²" fill="#1B5E20" name="Precio/m²" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="Margen %" fill="#2E7D32" name="Margen %" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-500 py-8 text-center">
+              No hay datos para {effectivePeriod}. Guardá la liquidación de ese mes en Liquidaciones.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Margen por Grupo */}
       {marginByGroupChartData.length > 0 && (

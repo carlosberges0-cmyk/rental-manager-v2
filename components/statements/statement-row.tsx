@@ -125,19 +125,19 @@ export function StatementRow({
   if (isEditing) {
     return (
       <tr className="border-b border-gray-200 bg-blue-50">
-        <td className="p-3 text-gray-900 sticky left-0 bg-blue-50 z-10">
+        <td className="py-1.5 px-2 text-gray-900 sticky left-0 bg-blue-50 z-10">
           <div className="font-medium">{groupName}</div>
           <div className="text-sm text-gray-600">{owner}</div>
         </td>
-        <td className="p-3 text-gray-900 font-medium">{unitName}</td>
-        <td className="p-3">
+        <td className="py-1.5 px-2 text-gray-900 font-medium">{unitName}</td>
+        <td className="py-1.5 px-2">
           <div className="flex flex-col gap-1">
             <Input
               type="number"
               step="0.01"
               value={formData.alquiler || ""}
               onChange={(e) => setFormData({ ...formData, alquiler: parseFloat(e.target.value) || 0 })}
-              className="w-24 text-right"
+              className="w-20 text-right h-7 text-sm"
               placeholder="Alq."
             />
             <Input
@@ -145,74 +145,74 @@ export function StatementRow({
               step="0.01"
               value={formData.ivaAlquiler ?? ""}
               onChange={(e) => setFormData({ ...formData, ivaAlquiler: e.target.value ? parseFloat(e.target.value) : null })}
-              className="w-20 text-right text-sm"
+              className="w-16 text-right h-6 text-sm"
               placeholder="IVA"
             />
           </div>
         </td>
-        <td className="p-3">
+        <td className="py-1.5 px-2">
           <Input
             type="number"
             step="0.01"
             value={formData.osse || ""}
             onChange={(e) => setFormData({ ...formData, osse: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
+            className="w-20 text-right h-7 text-sm"
           />
         </td>
-        <td className="p-3">
+        <td className="py-1.5 px-2">
           <Input
             type="number"
             step="0.01"
             value={formData.inmob || ""}
             onChange={(e) => setFormData({ ...formData, inmob: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
+            className="w-20 text-right h-7 text-sm"
           />
         </td>
-        <td className="p-3">
+        <td className="py-1.5 px-2">
           <Input
             type="number"
             step="0.01"
             value={formData.tsu || ""}
             onChange={(e) => setFormData({ ...formData, tsu: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
+            className="w-20 text-right h-7 text-sm"
           />
         </td>
-        <td className="p-3">
+        <td className="py-1.5 px-2">
           <Input
             type="number"
             step="0.01"
             value={formData.expensas || ""}
             onChange={(e) => setFormData({ ...formData, expensas: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
+            className="w-20 text-right h-7 text-sm"
           />
         </td>
-        <td className="p-3">
+        <td className="py-1.5 px-2">
           <Input
             type="number"
             step="0.01"
             value={formData.obras || ""}
             onChange={(e) => setFormData({ ...formData, obras: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
+            className="w-20 text-right h-7 text-sm"
           />
         </td>
-        <td className="p-3">
+        <td className="py-1.5 px-2">
           <Input
             type="number"
             step="0.01"
             value={formData.otrosTotal || ""}
             onChange={(e) => setFormData({ ...formData, otrosTotal: e.target.value ? parseFloat(e.target.value) : null })}
-            className="w-24 text-right"
+            className="w-20 text-right h-7 text-sm"
           />
         </td>
-        <td className="p-3 text-right text-gray-900 font-semibold">
+        <td className="py-1.5 px-2 text-right text-gray-900 font-semibold">
           {computed.totalGastos.toLocaleString()}
         </td>
-        <td className="p-3 text-right text-gray-900 font-semibold">
+        <td className="py-1.5 px-2 text-right text-gray-900 font-semibold">
           {computed.neto.toLocaleString()}
         </td>
-        <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados ? Number(unit.metrosCuadrados).toLocaleString() : "-"}</td>
-        <td className="p-3 text-right text-gray-600">{unit?.metrosCuadrados && Number(unit.metrosCuadrados) > 0 ? (computed.neto / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
-        <td className="p-3">
+        <td className="py-1.5 px-2 text-right text-gray-600">{unit?.metrosCuadrados ? Number(unit.metrosCuadrados).toLocaleString() : "-"}</td>
+        <td className="py-1.5 px-2 text-right text-gray-600">{unit?.metrosCuadrados && Number(unit.metrosCuadrados) > 0 ? (computed.neto / Number(unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+        <td className="py-1.5 px-2">
           <div className="flex gap-2 justify-center">
             <Button
               size="sm"
@@ -240,18 +240,18 @@ export function StatementRow({
 
   return (
     <tr className="border-b border-gray-200 hover:bg-gray-50">
-      <td className="p-3 text-gray-900 sticky left-0 bg-white z-10">
+      <td className="py-1.5 px-2 text-gray-900 sticky left-0 bg-white z-10">
         <div className="font-medium">{groupName}</div>
         <div className="text-sm text-gray-600">{owner}</div>
       </td>
-      <td className="p-3 text-gray-900 font-medium">{unitName}</td>
-      <td className="p-3 text-right text-gray-900 font-medium">
+      <td className="py-1.5 px-2 text-gray-900 font-medium">{unitName}</td>
+      <td className="py-1.5 px-2 text-right text-gray-900 font-medium">
         {row.totalMes?.toLocaleString() ?? "0"}
       </td>
-      <td className="p-3 text-right text-gray-700">{row.osse?.toLocaleString() || "-"}</td>
-      <td className="p-3 text-right text-gray-700">{row.inmob?.toLocaleString() || "-"}</td>
-      <td className="p-3 text-right text-gray-700">{row.tsu?.toLocaleString() || "-"}</td>
-      <td className="p-3">
+      <td className="py-1.5 px-2 text-right text-gray-700">{row.osse?.toLocaleString() || "-"}</td>
+      <td className="py-1.5 px-2 text-right text-gray-700">{row.inmob?.toLocaleString() || "-"}</td>
+      <td className="py-1.5 px-2 text-right text-gray-700">{row.tsu?.toLocaleString() || "-"}</td>
+      <td className="py-1.5 px-2">
         <Input
           type="number"
           step="0.01"
@@ -276,10 +276,10 @@ export function StatementRow({
               onSave({ ...row, ...newComputed, expensas: n })
             }
           }}
-          className="w-24 text-right h-9"
+          className="w-20 text-right h-7 text-sm"
         />
       </td>
-      <td className="p-3 text-right text-gray-700">
+      <td className="py-1.5 px-2 text-right text-gray-700">
         {row.obras && row.obras > 0 ? (
           <button
             onClick={() =>
@@ -300,7 +300,7 @@ export function StatementRow({
           "-"
         )}
       </td>
-      <td className="p-3 text-right text-gray-700">
+      <td className="py-1.5 px-2 text-right text-gray-700">
         {row.otrosTotal && row.otrosTotal > 0 ? (
           <button
             onClick={() =>
@@ -321,11 +321,11 @@ export function StatementRow({
           "-"
         )}
       </td>
-      <td className="p-3 text-right text-gray-900 font-semibold">{totalGastos.toLocaleString()}</td>
-      <td className="p-3 text-right text-gray-900 font-semibold">{netoVal.toLocaleString()}</td>
-      <td className="p-3 text-right text-gray-600">{m2 > 0 ? m2.toLocaleString() : "-"}</td>
-      <td className="p-3 text-right text-gray-600">{m2 > 0 && netoVal != null ? (netoVal / m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
-      <td className="p-3">
+      <td className="py-1.5 px-2 text-right text-gray-900 font-semibold">{totalGastos.toLocaleString()}</td>
+      <td className="py-1.5 px-2 text-right text-gray-900 font-semibold">{netoVal.toLocaleString()}</td>
+      <td className="py-1.5 px-2 text-right text-gray-600">{m2 > 0 ? m2.toLocaleString() : "-"}</td>
+      <td className="py-1.5 px-2 text-right text-gray-600">{m2 > 0 && netoVal != null ? (netoVal / m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+      <td className="py-1.5 px-2">
         <Button
           size="sm"
           variant="outline"

@@ -791,7 +791,7 @@ export function StatementsPage({
   }
 
   return (
-    <div className="container mx-auto p-6 bg-white min-h-screen">
+    <div className="w-full max-w-[100%] px-4 py-4 bg-white min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-[#F1F8F4] rounded-lg">
@@ -878,20 +878,20 @@ export function StatementsPage({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white">
-                  <th className="text-left p-4 font-bold sticky left-0 bg-[#1B5E20] z-10 border-r border-[#4CAF50]">Propietario/Grupo</th>
-                  <th className="text-left p-4 font-bold">Unidad</th>
-                  <th className="text-right p-4 font-bold">Alquiler</th>
-                  <th className="text-right p-4 font-bold">OSSE</th>
-                  <th className="text-right p-4 font-bold">Inmob</th>
-                  <th className="text-right p-4 font-bold">TSU</th>
-                  <th className="text-right p-4 font-bold">Expensas</th>
-                  <th className="text-right p-4 font-bold">Obras</th>
-                  <th className="text-right p-4 font-bold">Otros</th>
-                  <th className="text-right p-4 font-bold bg-[#4CAF50]">Total gastos</th>
-                  <th className="text-right p-4 font-bold bg-[#4CAF50]">NETO</th>
-                  <th className="text-right p-4 font-bold">m²</th>
-                  <th className="text-right p-4 font-bold">Ganancia/m²</th>
-                  <th className="text-center p-4 font-bold">Acciones</th>
+                  <th className="text-left py-2 px-2 font-bold sticky left-0 bg-[#1B5E20] z-10 border-r border-[#4CAF50] text-sm">Propietario/Grupo</th>
+                  <th className="text-left py-2 px-2 font-bold text-sm">Unidad</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">Alquiler</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">OSSE</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">Inmob</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">TSU</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">Expensas</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">Obras</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">Otros</th>
+                  <th className="text-right py-2 px-2 font-bold bg-[#4CAF50] text-sm">Total gastos</th>
+                  <th className="text-right py-2 px-2 font-bold bg-[#4CAF50] text-sm">NETO</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">m²</th>
+                  <th className="text-right py-2 px-2 font-bold text-sm">Ganancia/m²</th>
+                  <th className="text-center py-2 px-2 font-bold text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -942,21 +942,21 @@ export function StatementsPage({
                     const groupTotal = groupTotals.find(gt => gt.groupId === groupId)
                     if (groupTotal && groupTotal.count > 0) {
                       renderedRows.push(
-                        <tr key={`subtotal-${groupId || 'sin-grupo'}`} className="bg-[#E8F5E9] border-t-2 border-[#4CAF50] font-semibold">
-                          <td colSpan={2} className="p-3 text-[#1B5E20]">
+                        <tr key={`subtotal-${groupId || 'sin-grupo'}`} className="bg-[#E8F5E9] border-t-2 border-[#4CAF50] font-semibold text-sm">
+                          <td colSpan={2} className="py-1.5 px-2 text-[#1B5E20]">
                             Subtotal {groupTotal.groupName} ({groupTotal.count} {groupTotal.count === 1 ? 'unidad' : 'unidades'})
                           </td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.totalMes.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.osse.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.inmob.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.tsu.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.expensas.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.obras.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.otrosTotal.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.totalGastos?.toLocaleString() ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal).toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20] font-bold">{groupTotal.neto.toLocaleString()}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
-                          <td className="p-3 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.totalMes.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.osse.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.inmob.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.tsu.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.expensas.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.obras.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.otrosTotal.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20] font-bold">{groupTotal.totalGastos?.toLocaleString() ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20] font-bold">{groupTotal.neto.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
+                          <td className="py-1.5 px-2 text-right text-[#1B5E20]">{groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           <td></td>
                         </tr>
                       )
@@ -969,20 +969,20 @@ export function StatementsPage({
                 {/* Subtotales por grupo (fallback si no se renderizaron arriba) */}
                 {groupTotals.filter(gt => gt.groupId !== null && !rows.some(r => r.unit?.propertyGroupId === gt.groupId)).map((groupTotal, idx) => (
                   <tr key={`subtotal-${groupTotal.groupId}`} className="bg-gray-100 border-t-2 border-gray-300 font-semibold">
-                    <td colSpan={2} className="p-3 text-gray-900">
+                    <td colSpan={2} className="py-1.5 px-2 text-gray-900 text-sm">
                       Subtotal {groupTotal.groupName}
                     </td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.totalMes.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.osse.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.inmob.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.tsu.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.expensas.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.obras.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.otrosTotal.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.totalGastos?.toLocaleString() ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal).toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.neto.toLocaleString()}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
-                    <td className="p-3 text-right text-gray-900">{groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.totalMes.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.osse.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.inmob.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.tsu.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.expensas.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.obras.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.otrosTotal.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.totalGastos?.toLocaleString() ?? (groupTotal.osse + groupTotal.inmob + groupTotal.tsu + groupTotal.expensas + groupTotal.obras + groupTotal.otrosTotal).toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.neto.toLocaleString()}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.m2 > 0 ? groupTotal.m2.toLocaleString() : "-"}</td>
+                    <td className="py-1.5 px-2 text-right text-gray-900 text-sm">{groupTotal.m2 > 0 ? (groupTotal.neto / groupTotal.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                     <td></td>
                   </tr>
                 ))}
@@ -990,7 +990,7 @@ export function StatementsPage({
                 {/* Total general */}
                 {groupTotals.find(gt => gt.groupId === null) && (
                   <tr className="bg-[#1B5E20] text-white border-t-2 border-gray-400 font-bold">
-                    <td colSpan={2} className="p-3">
+                    <td colSpan={2} className="py-1.5 px-2 text-sm">
                       TOTAL GENERAL
                       {(() => {
                         const total = groupTotals.find(gt => gt.groupId === null)!
@@ -1006,17 +1006,17 @@ export function StatementsPage({
                       const totalGastos = total.totalGastos ?? (total.osse + total.inmob + total.tsu + total.expensas + total.obras + total.otrosTotal)
                       return (
                         <>
-                          <td className="p-3 text-right">{total.totalMes.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.osse.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.inmob.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.tsu.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.expensas.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.obras.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.otrosTotal.toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{totalGastos.toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{total.neto.toLocaleString()}</td>
-                          <td className="p-3 text-right">{total.m2 > 0 ? total.m2.toLocaleString() : "-"}</td>
-                          <td className="p-3 text-right">{total.m2 > 0 ? (total.neto / total.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.totalMes.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.osse.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.inmob.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.tsu.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.expensas.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.obras.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.otrosTotal.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right font-bold text-sm">{totalGastos.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right font-bold text-sm">{total.neto.toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.m2 > 0 ? total.m2.toLocaleString() : "-"}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{total.m2 > 0 ? (total.neto / total.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           <td></td>
                         </>
                       )
@@ -1078,19 +1078,19 @@ export function StatementsPage({
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gradient-to-r from-[#1B5E20] to-[#2E7D32] text-white">
-                    <th className="text-left p-4 font-bold sticky left-0 bg-[#1B5E20] z-10 border-r border-[#4CAF50]">Propietario/Grupo</th>
-                    <th className="text-left p-4 font-bold">Unidad</th>
-                    <th className="text-right p-4 font-bold">Alquiler</th>
-                    <th className="text-right p-4 font-bold">OSSE</th>
-                    <th className="text-right p-4 font-bold">Inmob</th>
-                    <th className="text-right p-4 font-bold">TSU</th>
-                    <th className="text-right p-4 font-bold">Expensas</th>
-                    <th className="text-right p-4 font-bold">Obras</th>
-                    <th className="text-right p-4 font-bold">Otros</th>
-                    <th className="text-right p-4 font-bold bg-[#4CAF50]">Total gastos</th>
-                    <th className="text-right p-4 font-bold bg-[#4CAF50]">NETO</th>
-                    <th className="text-right p-4 font-bold">m²</th>
-                    <th className="text-right p-4 font-bold">Ganancia/m²</th>
+                    <th className="text-left py-2 px-2 font-bold sticky left-0 bg-[#1B5E20] z-10 border-r border-[#4CAF50] text-sm">Propietario/Grupo</th>
+                    <th className="text-left py-2 px-2 font-bold text-sm">Unidad</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">Alquiler</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">OSSE</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">Inmob</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">TSU</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">Expensas</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">Obras</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">Otros</th>
+                    <th className="text-right py-2 px-2 font-bold bg-[#4CAF50] text-sm">Total gastos</th>
+                    <th className="text-right py-2 px-2 font-bold bg-[#4CAF50] text-sm">NETO</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">m²</th>
+                    <th className="text-right py-2 px-2 font-bold text-sm">Ganancia/m²</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1138,21 +1138,21 @@ export function StatementsPage({
                       groupRows.forEach((row: any) => {
                         renderedRows.push(
                           <tr key={`annual-${row.unitId}`} className="border-b border-[#d4e6dc] hover:bg-[#F1F8F4]">
-                            <td className="p-3 text-gray-700 sticky left-0 bg-white z-10 border-r border-[#d4e6dc]">
+                            <td className="py-1.5 px-2 text-gray-700 sticky left-0 bg-white z-10 border-r border-[#d4e6dc] text-sm">
                               {getGroupName(row)}
                             </td>
-                            <td className="p-3 text-gray-900 font-medium">{row.unit?.name || "-"}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.totalMes).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.osse).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.inmob).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.tsu).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.expensas).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.obras).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-700">{toNum(row.otrosTotal).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.totalGastos).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-900 font-bold">{toNum(row.neto).toLocaleString()}</td>
-                            <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toLocaleString() : "-"}</td>
-                            <td className="p-3 text-right text-gray-600">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neto != null ? (toNum(row.neto) / Number(row.unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                            <td className="py-1.5 px-2 text-gray-900 font-medium text-sm">{row.unit?.name || "-"}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.totalMes).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.osse).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.inmob).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.tsu).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.expensas).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.obras).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-700 text-sm">{toNum(row.otrosTotal).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-900 font-bold text-sm">{toNum(row.totalGastos).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-900 font-bold text-sm">{toNum(row.neto).toLocaleString()}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-600 text-sm">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 ? Number(row.unit.metrosCuadrados).toLocaleString() : "-"}</td>
+                            <td className="py-1.5 px-2 text-right text-gray-600 text-sm">{row.unit?.metrosCuadrados != null && Number(row.unit.metrosCuadrados) > 0 && row.neto != null ? (toNum(row.neto) / Number(row.unit.metrosCuadrados)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                           </tr>
                         )
                       })
@@ -1162,20 +1162,20 @@ export function StatementsPage({
                         if (gt && gt.count > 0) {
                           renderedRows.push(
                             <tr key={`annual-subtotal-${groupId}`} className="bg-[#E8F5E9] border-t-2 border-[#4CAF50] font-semibold">
-                              <td colSpan={2} className="p-3 text-[#1B5E20]">
+                              <td colSpan={2} className="py-1.5 px-2 text-[#1B5E20] text-sm">
                                 Subtotal {gt.groupName} ({gt.count} {gt.count === 1 ? "unidad" : "unidades"})
                               </td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.totalMes).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.osse).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.inmob).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.tsu).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.expensas).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.obras).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{toNum(gt.otrosTotal).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.totalGastos).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20] font-bold">{toNum(gt.neto).toLocaleString()}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? toNum(gt.m2).toLocaleString() : "-"}</td>
-                              <td className="p-3 text-right text-[#1B5E20]">{gt.m2 > 0 ? (toNum(gt.neto) / gt.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.totalMes).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.osse).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.inmob).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.tsu).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.expensas).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.obras).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{toNum(gt.otrosTotal).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] font-bold text-sm">{toNum(gt.totalGastos).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] font-bold text-sm">{toNum(gt.neto).toLocaleString()}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{gt.m2 > 0 ? toNum(gt.m2).toLocaleString() : "-"}</td>
+                              <td className="py-1.5 px-2 text-right text-[#1B5E20] text-sm">{gt.m2 > 0 ? (toNum(gt.neto) / gt.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                             </tr>
                           )
                         }
@@ -1186,7 +1186,7 @@ export function StatementsPage({
                     if (totalGeneral) {
                       renderedRows.push(
                         <tr key="annual-total-general" className="bg-[#1B5E20] text-white border-t-2 border-gray-400 font-bold">
-                          <td colSpan={2} className="p-3">
+                          <td colSpan={2} className="py-1.5 px-2 text-sm">
                             TOTAL GENERAL ANUAL
                             {totalGeneral.count > 0 && (
                               <span className="text-xs font-normal opacity-90 ml-2">
@@ -1194,17 +1194,17 @@ export function StatementsPage({
                               </span>
                             )}
                           </td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.totalMes).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.osse).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.inmob).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.tsu).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.expensas).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.obras).toLocaleString()}</td>
-                          <td className="p-3 text-right">{toNum(totalGeneral.otrosTotal).toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.totalGastos).toLocaleString()}</td>
-                          <td className="p-3 text-right font-bold text-lg">{toNum(totalGeneral.neto).toLocaleString()}</td>
-                          <td className="p-3 text-right">{totalGeneral.m2 > 0 ? toNum(totalGeneral.m2).toLocaleString() : "-"}</td>
-                          <td className="p-3 text-right">{totalGeneral.m2 > 0 ? (toNum(totalGeneral.neto) / totalGeneral.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.totalMes).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.osse).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.inmob).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.tsu).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.expensas).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.obras).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{toNum(totalGeneral.otrosTotal).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right font-bold text-sm">{toNum(totalGeneral.totalGastos).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right font-bold text-sm">{toNum(totalGeneral.neto).toLocaleString()}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{totalGeneral.m2 > 0 ? toNum(totalGeneral.m2).toLocaleString() : "-"}</td>
+                          <td className="py-1.5 px-2 text-right text-sm">{totalGeneral.m2 > 0 ? (toNum(totalGeneral.neto) / totalGeneral.m2).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "-"}</td>
                         </tr>
                       )
                     }
