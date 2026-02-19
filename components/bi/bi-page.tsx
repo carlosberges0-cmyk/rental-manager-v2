@@ -374,10 +374,9 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     return rows
   }, [groupMetrics, ytdMargin])
 
-  // Ganancia/m² por unidad: todas las unidades con m² (aunque tengan 0 en el año)
+  // Ganancia/m² por unidad: todas las unidades (0 si no hay m² o datos en el año)
   const gananciaPorM2ChartData = useMemo(() => {
     return unitMetricsAll
-      .filter(m => m.unit.metrosCuadrados != null && Number(m.unit.metrosCuadrados) > 0)
       .map(m => ({ name: m.unit.name, "Ganancia/m²": Math.round(m.gananciaPorM2) }))
       .sort((a, b) => b["Ganancia/m²"] - a["Ganancia/m²"])
   }, [unitMetricsAll])
@@ -429,11 +428,10 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       (s: StatementClient) => s.period === effectivePeriod && (!s.currency || s.currency === selectedCurrency)
     )
     const stmtByUnitId = new Map(stmts.map((s: StatementClient) => [s.unitId, s]))
-    const unitsWithM2 = units.filter(u => u.metrosCuadrados != null && Number(u.metrosCuadrados) > 0)
-    const rows: { name: string; "Precio/m²": number; "Margen/m²": number; "Margen %": number }[] = unitsWithM2.map(u => {
+    const rows: { name: string; "Precio/m²": number; "Margen/m²": number; "Margen %": number }[] = units.map(u => {
       const s = stmtByUnitId.get(u.id)
-      const m2 = Number(u.metrosCuadrados)
-      if (s) {
+      const m2 = u.metrosCuadrados != null && Number(u.metrosCuadrados) > 0 ? Number(u.metrosCuadrados) : 0
+      if (s && m2 > 0) {
         const totalMes = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
         const neto = s.neto != null ? Number(s.neto) : (s.neteado != null ? Number(s.neteado) : 0)
         const precioM2 = totalMes / m2
@@ -556,7 +554,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         <CardHeader className="bg-white border-b border-gray-200">
           <CardTitle className="text-gray-900">Precio/m², Margen/m² y Margen % por Unidad (por período)</CardTitle>
           <CardDescription className="text-gray-600">
-            Elegí el período y ordená por precio/m², margen/m² o margen %. Se muestran todas las unidades con m² cargado (en 0 si no hay liquidación en ese mes).
+            Elegí el período y ordená por precio/m², margen/m² o margen %. Se muestran todas las unidades (en 0 si no hay m² o liquidación en ese mes).
           </CardDescription>
           <div className="flex flex-wrap items-center gap-4 mt-3">
             <div className="flex items-center gap-2">
