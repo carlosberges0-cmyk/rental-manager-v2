@@ -587,8 +587,8 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                 <XAxis type="number" stroke="#6b7280" />
                 <YAxis type="category" dataKey="name" width={140} stroke="#6b7280" tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value: number, name: string) => [
-                    name === "Precio/m²" ? `${value?.toLocaleString() ?? 0} ${selectedCurrency}/m²` : `${value ?? 0}%`,
+                  formatter={(value: number | undefined, name: string) => [
+                    name === "Precio/m²" ? `${value != null ? value.toLocaleString() : 0} ${selectedCurrency}/m²` : `${value ?? 0}%`,
                     name,
                   ]}
                 />
