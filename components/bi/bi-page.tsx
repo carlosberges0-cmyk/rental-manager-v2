@@ -318,105 +318,6 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   const unitMetrics = unitMetricsResult.filtered
   const unitMetricsAll = unitMetricsResult.all
 
-  // Métricas para la tabla: anual o por mes según tablePeriodMode
-  type UnitMetricRow = { unit: UnitUI; income: number; expenses: number; expensas: number; manualExpenses: number; unitMonthlyExpenses: number; taxes: number; deductibleExpenses: number; margin: number; profitability: number; occupancyDays: number; occupancyRate: number; gananciaPorM2: number; currency: string }
-  const tableMetrics = useMemo((): UnitMetricRow[] => {
-    if (tablePeriodMode === "annual") {
-      return unitMetrics as UnitMetricRow[]
-    }
-    const period = effectivePeriod
-    if (!period) return unitMetricsAll as UnitMetricRow[]
-    const [y, m] = period.split("-").map(Number)
-    const monthStart = new Date(y, m - 1, 1)
-    const monthEnd = new Date(y, m, 0)
-    const daysInMonth = monthEnd.getDate()
-    const stmts = (statementsByYear[selectedYear] || []).filter(
-      (s: StatementClient) => s.period === period && (!s.currency || s.currency === selectedCurrency)
-    )
-    const monthExpenses = expenses.filter(
-      e => e.currency === selectedCurrency && e.month === period
-    )
-    const metrics: Record<string, UnitMetricRow> = {}
-    units.forEach(unit => {
-      metrics[unit.id] = {
-        unit,
-        income: 0,
-        expenses: 0,
-        expensas: 0,
-        manualExpenses: 0,
-        unitMonthlyExpenses: unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0,
-        taxes: 0,
-        deductibleExpenses: 0,
-        margin: 0,
-        profitability: 0,
-        occupancyDays: 0,
-        occupancyRate: 0,
-        gananciaPorM2: 0,
-        currency: selectedCurrency,
-      }
-    })
-    stmts.forEach((s: StatementClient) => {
-      const unitId = s.unitId
-      if (!metrics[unitId]) return
-      const alq = s.alquiler != null ? Number(s.alquiler) : 0
-      const exp = s.expensas != null ? Number(s.expensas) : 0
-      metrics[unitId].income += alq
-      metrics[unitId].expensas += exp
-      metrics[unitId].expenses += exp
-    })
-    monthExpenses.forEach(expense => {
-      const unitId = expense.unitId
-      if (!metrics[unitId]) return
-      const amount = typeof expense.amount === "number" ? expense.amount : Number(expense.amount) || 0
-      if (expense.deductibleFlag) metrics[unitId].deductibleExpenses += amount
-      metrics[unitId].manualExpenses += amount
-      metrics[unitId].expenses += amount
-    })
-    units.forEach(unit => {
-      if (!metrics[unit.id]) return
-      const hasStmt = stmts.some((s: StatementClient) => s.unitId === unit.id)
-      const monthlyAmount = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
-      if (!hasStmt && monthlyAmount > 0) {
-        metrics[unit.id].expensas += monthlyAmount
-        metrics[unit.id].expenses += monthlyAmount
-      }
-    })
-    rentalPeriods
-      .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
-      .forEach(periodRp => {
-        const periodStart = new Date(periodRp.startDate)
-        const periodEnd = new Date(periodRp.endDate)
-        if (periodStart > monthEnd || periodEnd < monthStart) return
-        const unitId = periodRp.unitId
-        if (!metrics[unitId]) return
-        const overlapStart = new Date(Math.max(periodStart.getTime(), monthStart.getTime()))
-        const overlapEnd = new Date(Math.min(periodEnd.getTime(), monthEnd.getTime()))
-        const days = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        metrics[unitId].occupancyDays += days
-      })
-    const result = Object.values(metrics).map(metric => {
-      metric.income = Number(metric.income) || 0
-      metric.expenses = Number(metric.expenses) || 0
-      metric.expensas = Number(metric.expensas) || 0
-      metric.manualExpenses = Number(metric.manualExpenses) || 0
-      metric.unitMonthlyExpenses = Number(metric.unitMonthlyExpenses) || 0
-      metric.taxes = 0
-      metric.deductibleExpenses = Number(metric.deductibleExpenses) || 0
-      metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
-      metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
-      const m2 = metric.unit.metrosCuadrados != null ? Number(metric.unit.metrosCuadrados) : 0
-      metric.gananciaPorM2 = m2 > 0 ? metric.margin / m2 : 0
-      metric.occupancyRate = daysInMonth > 0 ? (metric.occupancyDays / daysInMonth) * 100 : 0
-      return metric
-    })
-    const sorter = (a: UnitMetricRow, b: UnitMetricRow) => {
-      const nameCompare = (a.unit.name || "").localeCompare(b.unit.name || "")
-      if (nameCompare !== 0) return nameCompare
-      return a.unit.id.localeCompare(b.unit.id)
-    }
-    return result.sort(sorter)
-  }, [tablePeriodMode, effectivePeriod, unitMetrics, unitMetricsAll, units, statementsByYear, expenses, rentalPeriods, selectedYear, selectedCurrency])
-
   // Prepare comparison chart data (por unidad)
   const comparisonChartData = unitMetrics.map(metric => ({
     name: metric.unit.name,
@@ -541,6 +442,105 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     })
     return sorted
   }, [statementsByYear, selectedYear, selectedCurrency, effectivePeriod, units, chartSortBy, chartSortOrder])
+
+  // Métricas para la tabla: anual o por mes según tablePeriodMode
+  type UnitMetricRow = { unit: UnitUI; income: number; expenses: number; expensas: number; manualExpenses: number; unitMonthlyExpenses: number; taxes: number; deductibleExpenses: number; margin: number; profitability: number; occupancyDays: number; occupancyRate: number; gananciaPorM2: number; currency: string }
+  const tableMetrics = useMemo((): UnitMetricRow[] => {
+    if (tablePeriodMode === "annual") {
+      return unitMetrics as UnitMetricRow[]
+    }
+    const period = effectivePeriod
+    if (!period) return unitMetricsAll as UnitMetricRow[]
+    const [y, m] = period.split("-").map(Number)
+    const monthStart = new Date(y, m - 1, 1)
+    const monthEnd = new Date(y, m, 0)
+    const daysInMonth = monthEnd.getDate()
+    const stmts = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => s.period === period && (!s.currency || s.currency === selectedCurrency)
+    )
+    const monthExpenses = expenses.filter(
+      e => e.currency === selectedCurrency && e.month === period
+    )
+    const metrics: Record<string, UnitMetricRow> = {}
+    units.forEach(unit => {
+      metrics[unit.id] = {
+        unit,
+        income: 0,
+        expenses: 0,
+        expensas: 0,
+        manualExpenses: 0,
+        unitMonthlyExpenses: unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0,
+        taxes: 0,
+        deductibleExpenses: 0,
+        margin: 0,
+        profitability: 0,
+        occupancyDays: 0,
+        occupancyRate: 0,
+        gananciaPorM2: 0,
+        currency: selectedCurrency,
+      }
+    })
+    stmts.forEach((s: StatementClient) => {
+      const unitId = s.unitId
+      if (!metrics[unitId]) return
+      const alq = s.alquiler != null ? Number(s.alquiler) : 0
+      const exp = s.expensas != null ? Number(s.expensas) : 0
+      metrics[unitId].income += alq
+      metrics[unitId].expensas += exp
+      metrics[unitId].expenses += exp
+    })
+    monthExpenses.forEach(expense => {
+      const unitId = expense.unitId
+      if (!metrics[unitId]) return
+      const amount = typeof expense.amount === "number" ? expense.amount : Number(expense.amount) || 0
+      if (expense.deductibleFlag) metrics[unitId].deductibleExpenses += amount
+      metrics[unitId].manualExpenses += amount
+      metrics[unitId].expenses += amount
+    })
+    units.forEach(unit => {
+      if (!metrics[unit.id]) return
+      const hasStmt = stmts.some((s: StatementClient) => s.unitId === unit.id)
+      const monthlyAmount = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
+      if (!hasStmt && monthlyAmount > 0) {
+        metrics[unit.id].expensas += monthlyAmount
+        metrics[unit.id].expenses += monthlyAmount
+      }
+    })
+    rentalPeriods
+      .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
+      .forEach(periodRp => {
+        const periodStart = new Date(periodRp.startDate)
+        const periodEnd = new Date(periodRp.endDate)
+        if (periodStart > monthEnd || periodEnd < monthStart) return
+        const unitId = periodRp.unitId
+        if (!metrics[unitId]) return
+        const overlapStart = new Date(Math.max(periodStart.getTime(), monthStart.getTime()))
+        const overlapEnd = new Date(Math.min(periodEnd.getTime(), monthEnd.getTime()))
+        const days = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        metrics[unitId].occupancyDays += days
+      })
+    const result = Object.values(metrics).map(metric => {
+      metric.income = Number(metric.income) || 0
+      metric.expenses = Number(metric.expenses) || 0
+      metric.expensas = Number(metric.expensas) || 0
+      metric.manualExpenses = Number(metric.manualExpenses) || 0
+      metric.unitMonthlyExpenses = Number(metric.unitMonthlyExpenses) || 0
+      metric.taxes = 0
+      metric.deductibleExpenses = Number(metric.deductibleExpenses) || 0
+      metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
+      metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
+      const m2 = metric.unit.metrosCuadrados != null ? Number(metric.unit.metrosCuadrados) : 0
+      metric.gananciaPorM2 = m2 > 0 ? metric.margin / m2 : 0
+      metric.occupancyRate = daysInMonth > 0 ? (metric.occupancyDays / daysInMonth) * 100 : 0
+      return metric
+    })
+    const sorter = (a: UnitMetricRow, b: UnitMetricRow) => {
+      const nameCompare = (a.unit.name || "").localeCompare(b.unit.name || "")
+      if (nameCompare !== 0) return nameCompare
+      return a.unit.id.localeCompare(b.unit.id)
+    }
+    return result.sort(sorter)
+  }, [tablePeriodMode, effectivePeriod, unitMetrics, unitMetricsAll, units, statementsByYear, expenses, rentalPeriods, selectedYear, selectedCurrency])
 
   return (
     <div className="container mx-auto p-6 bg-white min-h-screen">
