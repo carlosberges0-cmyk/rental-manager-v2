@@ -29,6 +29,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   const [selectedPeriod, setSelectedPeriod] = useState(currentMonth)
   const [chartSortBy, setChartSortBy] = useState<"precioM2" | "margenM2" | "margenPct">("margenPct")
   const [chartSortOrder, setChartSortOrder] = useState<"desc" | "asc">("desc")
+  const [tablePeriodMode, setTablePeriodMode] = useState<"annual" | "month">("annual")
 
   // Calculate KPIs
   const taxData = initialTaxData || { income: 0, expenses: 0, ivaAmount: 0, iibbAmount: 0, igEstimate: 0, deductibleExpenses: 0, incomeByMonth: {}, expensesByMonth: {} }
@@ -316,6 +317,105 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
 
   const unitMetrics = unitMetricsResult.filtered
   const unitMetricsAll = unitMetricsResult.all
+
+  // Métricas para la tabla: anual o por mes según tablePeriodMode
+  type UnitMetricRow = { unit: UnitUI; income: number; expenses: number; expensas: number; manualExpenses: number; unitMonthlyExpenses: number; taxes: number; deductibleExpenses: number; margin: number; profitability: number; occupancyDays: number; occupancyRate: number; gananciaPorM2: number; currency: string }
+  const tableMetrics = useMemo((): UnitMetricRow[] => {
+    if (tablePeriodMode === "annual") {
+      return unitMetrics as UnitMetricRow[]
+    }
+    const period = effectivePeriod
+    if (!period) return unitMetricsAll as UnitMetricRow[]
+    const [y, m] = period.split("-").map(Number)
+    const monthStart = new Date(y, m - 1, 1)
+    const monthEnd = new Date(y, m, 0)
+    const daysInMonth = monthEnd.getDate()
+    const stmts = (statementsByYear[selectedYear] || []).filter(
+      (s: StatementClient) => s.period === period && (!s.currency || s.currency === selectedCurrency)
+    )
+    const monthExpenses = expenses.filter(
+      e => e.currency === selectedCurrency && e.month === period
+    )
+    const metrics: Record<string, UnitMetricRow> = {}
+    units.forEach(unit => {
+      metrics[unit.id] = {
+        unit,
+        income: 0,
+        expenses: 0,
+        expensas: 0,
+        manualExpenses: 0,
+        unitMonthlyExpenses: unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0,
+        taxes: 0,
+        deductibleExpenses: 0,
+        margin: 0,
+        profitability: 0,
+        occupancyDays: 0,
+        occupancyRate: 0,
+        gananciaPorM2: 0,
+        currency: selectedCurrency,
+      }
+    })
+    stmts.forEach((s: StatementClient) => {
+      const unitId = s.unitId
+      if (!metrics[unitId]) return
+      const alq = s.alquiler != null ? Number(s.alquiler) : 0
+      const exp = s.expensas != null ? Number(s.expensas) : 0
+      metrics[unitId].income += alq
+      metrics[unitId].expensas += exp
+      metrics[unitId].expenses += exp
+    })
+    monthExpenses.forEach(expense => {
+      const unitId = expense.unitId
+      if (!metrics[unitId]) return
+      const amount = typeof expense.amount === "number" ? expense.amount : Number(expense.amount) || 0
+      if (expense.deductibleFlag) metrics[unitId].deductibleExpenses += amount
+      metrics[unitId].manualExpenses += amount
+      metrics[unitId].expenses += amount
+    })
+    units.forEach(unit => {
+      if (!metrics[unit.id]) return
+      const hasStmt = stmts.some((s: StatementClient) => s.unitId === unit.id)
+      const monthlyAmount = unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0
+      if (!hasStmt && monthlyAmount > 0) {
+        metrics[unit.id].expensas += monthlyAmount
+        metrics[unit.id].expenses += monthlyAmount
+      }
+    })
+    rentalPeriods
+      .filter(rp => rp.currency === selectedCurrency && rp.status !== "CANCELLED")
+      .forEach(periodRp => {
+        const periodStart = new Date(periodRp.startDate)
+        const periodEnd = new Date(periodRp.endDate)
+        if (periodStart > monthEnd || periodEnd < monthStart) return
+        const unitId = periodRp.unitId
+        if (!metrics[unitId]) return
+        const overlapStart = new Date(Math.max(periodStart.getTime(), monthStart.getTime()))
+        const overlapEnd = new Date(Math.min(periodEnd.getTime(), monthEnd.getTime()))
+        const days = Math.ceil((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+        metrics[unitId].occupancyDays += days
+      })
+    const result = Object.values(metrics).map(metric => {
+      metric.income = Number(metric.income) || 0
+      metric.expenses = Number(metric.expenses) || 0
+      metric.expensas = Number(metric.expensas) || 0
+      metric.manualExpenses = Number(metric.manualExpenses) || 0
+      metric.unitMonthlyExpenses = Number(metric.unitMonthlyExpenses) || 0
+      metric.taxes = 0
+      metric.deductibleExpenses = Number(metric.deductibleExpenses) || 0
+      metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
+      metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
+      const m2 = metric.unit.metrosCuadrados != null ? Number(metric.unit.metrosCuadrados) : 0
+      metric.gananciaPorM2 = m2 > 0 ? metric.margin / m2 : 0
+      metric.occupancyRate = daysInMonth > 0 ? (metric.occupancyDays / daysInMonth) * 100 : 0
+      return metric
+    })
+    const sorter = (a: UnitMetricRow, b: UnitMetricRow) => {
+      const nameCompare = (a.unit.name || "").localeCompare(b.unit.name || "")
+      if (nameCompare !== 0) return nameCompare
+      return a.unit.id.localeCompare(b.unit.id)
+    }
+    return result.sort(sorter)
+  }, [tablePeriodMode, effectivePeriod, unitMetrics, unitMetricsAll, units, statementsByYear, expenses, rentalPeriods, selectedYear, selectedCurrency])
 
   // Prepare comparison chart data (por unidad)
   const comparisonChartData = unitMetrics.map(metric => ({
@@ -705,8 +805,38 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
 
       {/* Unit-by-Unit Metrics */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Análisis por Unidad ({selectedYear})</h2>
-        
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="text-2xl font-bold text-gray-900">
+            Análisis por Unidad (
+            {tablePeriodMode === "annual" ? selectedYear + " anual" : format(new Date(effectivePeriod + "-01"), "MMMM yyyy")}
+            )
+          </h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <Label htmlFor="table-period-mode" className="text-sm font-medium text-gray-700">Período tabla</Label>
+            <select
+              id="table-period-mode"
+              value={tablePeriodMode}
+              onChange={(e) => setTablePeriodMode(e.target.value as "annual" | "month")}
+              className="flex h-10 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm w-28"
+            >
+              <option value="annual">Anual</option>
+              <option value="month">Por mes</option>
+            </select>
+            {tablePeriodMode === "month" && (
+              <>
+                <Label htmlFor="table-period-month" className="text-sm font-medium text-gray-700">Mes</Label>
+                <Input
+                  id="table-period-month"
+                  type="month"
+                  value={effectivePeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="w-40 h-10"
+                />
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Comparison Chart */}
         {comparisonChartData.length > 0 && (
           <Card className="border border-gray-200 mb-6">
@@ -731,7 +861,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         )}
 
         {/* Unit Metrics Table */}
-        {unitMetrics.length > 0 && (
+        {tableMetrics.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -749,7 +879,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                 </tr>
               </thead>
               <tbody>
-                {unitMetrics.map((metric, index) => (
+                {tableMetrics.map((metric, index) => (
                   <tr 
                     key={`${metric.unit.id}-${index}`} 
                     className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
@@ -789,10 +919,12 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
           </div>
         )}
 
-        {unitMetrics.length === 0 && (
+        {tableMetrics.length === 0 && (
           <Card className="border border-gray-200">
             <CardContent className="p-8 text-center">
-              <p className="text-gray-600">No hay datos disponibles para el año {selectedYear}</p>
+              <p className="text-gray-600">
+                {tablePeriodMode === "annual" ? `No hay datos disponibles para el año ${selectedYear}` : `No hay datos para ${effectivePeriod}`}
+              </p>
             </CardContent>
           </Card>
         )}
