@@ -882,9 +882,9 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
               className="w-40 h-10"
             />
           )}
-          <span className="text-sm text-gray-500">
-            {tablePeriodMode === "annual" ? `${selectedYear} (todo el año)` : format(new Date(effectivePeriod + "-01"), "LLLL yyyy", { locale: es })}
-          </span>
+          {tablePeriodMode === "annual" && (
+            <span className="text-sm text-gray-500">{selectedYear} (todo el año)</span>
+          )}
         </div>
 
         {/* Unit Metrics Table */}
