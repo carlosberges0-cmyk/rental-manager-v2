@@ -11,7 +11,7 @@ import { es } from "date-fns/locale"
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
-type StatementClient = { period: string; unitId: string; alquiler: number; totalMes?: number; neto?: number | null; neteado?: number | null; expensas?: number | null; currency?: string; unit?: { name?: string; propertyGroup?: { id: string; name: string } | null; metrosCuadrados?: number | null } | null }
+type StatementClient = { period: string; unitId: string; alquiler: number; totalMes?: number; neto?: number | null; neteado?: number | null; expensas?: number | null; gastos?: number; currency?: string; unit?: { name?: string; propertyGroup?: { id: string; name: string } | null; metrosCuadrados?: number | null } | null }
 
 interface BIPageProps {
   taxData: TaxDataUI
@@ -74,10 +74,13 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     const stmtsForYear = (statementsByYear[selectedYear] || []).filter(
       (s: StatementClient) => !s.currency || s.currency === selectedCurrency
     )
+    let ytdGastosLiquidacion = 0
     stmtsForYear.forEach((s: StatementClient) => {
       if (!s.period?.startsWith(`${selectedYear}-`)) return
       const exp = s.expensas != null ? Number(s.expensas) : 0
       ytdExpensas += exp
+      const gastosStmt = s.gastos != null ? Number(s.gastos) : 0
+      ytdGastosLiquidacion += gastosStmt
     })
 
     // Calculate YTD expenses breakdown for selected year and currency
@@ -105,8 +108,8 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     })
     
     // Margen YTD = ingreso - gastos - expensas - impuestos + gastos deducibles
-    // gastos = manualExpenses + unitMonthlyExpenses
-    const ytdGastos = ytdManualExpenses + ytdUnitMonthlyExpenses
+    // gastos = manualExpenses + unitMonthlyExpenses + gastos liquidación (OSSE, Inmob, TSU, Obras, Otros)
+    const ytdGastos = ytdManualExpenses + ytdUnitMonthlyExpenses + ytdGastosLiquidacion
     const ytdMargin = ytdIncome - ytdGastos - ytdExpensas - ytdTaxes + ytdDeductibleExpenses
     const profitability = ytdIncome > 0 ? (ytdMargin / ytdIncome) * 100 : 0
     
@@ -116,6 +119,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       ytdExpensas,
       ytdManualExpenses,
       ytdUnitMonthlyExpenses,
+      ytdGastosLiquidacion,
       ytdTaxes,
       ytdDeductibleExpenses,
       ytdMargin,
@@ -171,6 +175,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       expenses: number
       expensas: number
       manualExpenses: number
+      gastosLiquidacion: number
       unitMonthlyExpenses: number
       taxes: number
       deductibleExpenses: number
@@ -190,6 +195,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         expenses: 0,
         expensas: 0,
         manualExpenses: 0,
+        gastosLiquidacion: 0,
         unitMonthlyExpenses: 0,
         taxes: 0,
         deductibleExpenses: 0,
@@ -211,6 +217,8 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       if (!metrics[unitId]) return
       const ingreso = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
       metrics[unitId].income = Number(metrics[unitId].income) + ingreso
+      const gastosStmt = s.gastos != null ? Number(s.gastos) : 0
+      metrics[unitId].gastosLiquidacion = Number(metrics[unitId].gastosLiquidacion) + gastosStmt
     })
 
     // Occupancy days from rental periods (para tasa de ocupación)
@@ -276,6 +284,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     // Calculate final metrics - ensure all values are numbers
     Object.values(metrics).forEach(metric => {
       metric.income = Number(metric.income) || 0
+      metric.gastosLiquidacion = Number(metric.gastosLiquidacion) || 0
       metric.expenses = Number(metric.expenses) || 0
       metric.expensas = Number(metric.expensas) || 0
       metric.manualExpenses = Number(metric.manualExpenses) || 0
@@ -283,20 +292,13 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       metric.taxes = Number(metric.taxes) || 0
       metric.deductibleExpenses = Number(metric.deductibleExpenses) || 0
       metric.occupancyDays = Number(metric.occupancyDays) || 0
+      // expenses total = manual + gastos liquidación (OSSE, Inmob, TSU, Obras, Otros) + expensas
+      metric.expenses = metric.manualExpenses + metric.gastosLiquidacion + metric.expensas
       
       // Margen = Ingresos - Gastos - Expensas - Impuestos + Gastos deducibles
-      // Gastos = manualExpenses (gastos manuales que NO son expensas)
-      // Expensas = expensas (categoría EXPENSAS de gastos manuales) + unitMonthlyExpenses * 12
-      // Impuestos = taxes
-      // Gastos deducibles = deductibleExpenses (sumar porque reducen el impuesto)
-      // 
-      // IMPORTANTE: 
-      // - metric.expenses = manualExpenses + expensas + unitMonthlyExpenses*12 (TOTAL)
-      // - metric.expensas = expensas (de gastos manuales) + unitMonthlyExpenses*12
-      // - metric.manualExpenses = manualExpenses (gastos manuales que NO son expensas)
-      //
-      // Para el margen: restar manualExpenses + expensas por separado (expenses es el total pero se muestra separado en la tabla)
-      metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
+      // Gastos = manualExpenses + gastosLiquidacion (OSSE, Inmob, TSU, Obras, Otros)
+      // Expensas = expensas (liquidación + unitMonthlyExpenses*12)
+      metric.margin = metric.income - metric.manualExpenses - metric.gastosLiquidacion - metric.expensas - metric.taxes + metric.deductibleExpenses
       metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
       const m2 = metric.unit.metrosCuadrados != null ? Number(metric.unit.metrosCuadrados) : 0
       metric.gananciaPorM2 = m2 > 0 ? metric.margin / m2 : 0
@@ -445,7 +447,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   }, [statementsByYear, selectedYear, selectedCurrency, effectivePeriod, units, chartSortBy, chartSortOrder])
 
   // Métricas para la tabla: anual o por mes según tablePeriodMode
-  type UnitMetricRow = { unit: UnitUI; income: number; expenses: number; expensas: number; manualExpenses: number; unitMonthlyExpenses: number; taxes: number; deductibleExpenses: number; margin: number; profitability: number; occupancyDays: number; occupancyRate: number; gananciaPorM2: number; currency: string }
+  type UnitMetricRow = { unit: UnitUI; income: number; expenses: number; expensas: number; manualExpenses: number; gastosLiquidacion: number; unitMonthlyExpenses: number; taxes: number; deductibleExpenses: number; margin: number; profitability: number; occupancyDays: number; occupancyRate: number; gananciaPorM2: number; currency: string }
   const tableMetrics = useMemo((): UnitMetricRow[] => {
     if (tablePeriodMode === "annual") {
       return unitMetrics as UnitMetricRow[]
@@ -470,6 +472,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         expenses: 0,
         expensas: 0,
         manualExpenses: 0,
+        gastosLiquidacion: 0,
         unitMonthlyExpenses: unit.monthlyExpensesAmount != null ? Number(unit.monthlyExpensesAmount) : 0,
         taxes: 0,
         deductibleExpenses: 0,
@@ -486,9 +489,11 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       if (!metrics[unitId]) return
       const ingreso = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
       const exp = s.expensas != null ? Number(s.expensas) : 0
+      const gastosStmt = s.gastos != null ? Number(s.gastos) : 0
       metrics[unitId].income += ingreso
       metrics[unitId].expensas += exp
-      metrics[unitId].expenses += exp
+      metrics[unitId].gastosLiquidacion += gastosStmt
+      metrics[unitId].expenses += exp + gastosStmt
     })
     monthExpenses.forEach(expense => {
       const unitId = expense.unitId
@@ -522,13 +527,15 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       })
     const result = Object.values(metrics).map(metric => {
       metric.income = Number(metric.income) || 0
+      metric.gastosLiquidacion = Number(metric.gastosLiquidacion) || 0
       metric.expenses = Number(metric.expenses) || 0
       metric.expensas = Number(metric.expensas) || 0
       metric.manualExpenses = Number(metric.manualExpenses) || 0
       metric.unitMonthlyExpenses = Number(metric.unitMonthlyExpenses) || 0
       metric.taxes = 0
       metric.deductibleExpenses = Number(metric.deductibleExpenses) || 0
-      metric.margin = metric.income - metric.manualExpenses - metric.expensas - metric.taxes + metric.deductibleExpenses
+      metric.expenses = metric.manualExpenses + metric.gastosLiquidacion + metric.expensas
+      metric.margin = metric.income - metric.manualExpenses - metric.gastosLiquidacion - metric.expensas - metric.taxes + metric.deductibleExpenses
       metric.profitability = metric.income > 0 ? (metric.margin / metric.income) * 100 : 0
       const m2 = metric.unit.metrosCuadrados != null ? Number(metric.unit.metrosCuadrados) : 0
       metric.gananciaPorM2 = m2 > 0 ? metric.margin / m2 : 0
@@ -597,7 +604,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
           </CardHeader>
           <CardContent className="bg-white">
             <div className="text-2xl font-bold text-gray-700">
-              {(ytdKPIs.ytdManualExpenses + ytdKPIs.ytdUnitMonthlyExpenses + ytdKPIs.ytdExpensas).toLocaleString()} {selectedCurrency}
+              {(ytdKPIs.ytdManualExpenses + ytdKPIs.ytdUnitMonthlyExpenses + (ytdKPIs.ytdGastosLiquidacion ?? 0) + ytdKPIs.ytdExpensas).toLocaleString()} {selectedCurrency}
             </div>
           </CardContent>
         </Card>
@@ -917,7 +924,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
                       {metric.income.toLocaleString()} {selectedCurrency}
                     </td>
                     <td className="p-4 text-right text-gray-700">
-                      {metric.manualExpenses.toLocaleString()} {selectedCurrency}
+                      {(metric.manualExpenses + (metric.gastosLiquidacion ?? 0)).toLocaleString()} {selectedCurrency}
                     </td>
                     <td className="p-4 text-right text-gray-600">
                       {metric.expensas.toLocaleString()} {selectedCurrency}
