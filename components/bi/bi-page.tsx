@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import { format, subMonths, eachMonthOfInterval, startOfYear, endOfYear } from "date-fns"
+import { es } from "date-fns/locale"
 
 import type { RentalPeriodUI, ExpenseUI, UnitUI, TaxDataUI } from "@/lib/ui-types"
 
@@ -34,15 +35,15 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
   // Calculate KPIs
   const taxData = initialTaxData || { income: 0, expenses: 0, ivaAmount: 0, iibbAmount: 0, igEstimate: 0, deductibleExpenses: 0, incomeByMonth: {}, expensesByMonth: {} }
   
-  // Ingresos y expensas desde liquidaciones (statements)
+  // Ingresos = totalMes (alquiler+IVA+etc.) para coincidir con la columna Alquiler de Liquidaciones
   const incomeByMonthFromStatements = useMemo(() => {
     const stmts = statementsByYear[selectedYear] || []
     const byMonth: Record<string, number> = {}
     stmts.forEach((s: StatementClient) => {
       if (!s.period?.startsWith(`${selectedYear}-`)) return
       if (s.currency && s.currency !== selectedCurrency) return
-      const alq = s.alquiler != null ? Number(s.alquiler) : 0
-      byMonth[s.period] = (byMonth[s.period] || 0) + alq
+      const ingreso = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
+      byMonth[s.period] = (byMonth[s.period] || 0) + ingreso
     })
     return byMonth
   }, [statementsByYear, selectedYear, selectedCurrency])
@@ -201,15 +202,15 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
       }
     })
 
-    // Ingresos = alquiler desde liquidaciones (statements)
+    // Ingresos = totalMes (igual que columna Alquiler en Liquidaciones)
     const stmts = (statementsByYear[selectedYear] || []).filter(
       (s: StatementClient) => !s.currency || s.currency === selectedCurrency
     )
     stmts.forEach((s: StatementClient) => {
       const unitId = s.unitId
       if (!metrics[unitId]) return
-      const alq = s.alquiler != null ? Number(s.alquiler) : 0
-      metrics[unitId].income = Number(metrics[unitId].income) + alq
+      const ingreso = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
+      metrics[unitId].income = Number(metrics[unitId].income) + ingreso
     })
 
     // Occupancy days from rental periods (para tasa de ocupación)
@@ -483,9 +484,9 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
     stmts.forEach((s: StatementClient) => {
       const unitId = s.unitId
       if (!metrics[unitId]) return
-      const alq = s.alquiler != null ? Number(s.alquiler) : 0
+      const ingreso = s.totalMes != null ? Number(s.totalMes) : (s.alquiler != null ? Number(s.alquiler) : 0)
       const exp = s.expensas != null ? Number(s.expensas) : 0
-      metrics[unitId].income += alq
+      metrics[unitId].income += ingreso
       metrics[unitId].expensas += exp
       metrics[unitId].expenses += exp
     })
@@ -808,7 +809,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <h2 className="text-2xl font-bold text-gray-900">
             Análisis por Unidad (
-            {tablePeriodMode === "annual" ? selectedYear + " anual" : format(new Date(effectivePeriod + "-01"), "MMMM yyyy")}
+            {tablePeriodMode === "annual" ? selectedYear + " anual" : format(new Date(effectivePeriod + "-01"), "LLLL yyyy", { locale: es })}
             )
           </h2>
           <div className="flex flex-wrap items-center gap-3">
@@ -882,7 +883,7 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
             />
           )}
           <span className="text-sm text-gray-500">
-            {tablePeriodMode === "annual" ? `${selectedYear} (todo el año)` : format(new Date(effectivePeriod + "-01"), "MMMM yyyy")}
+            {tablePeriodMode === "annual" ? `${selectedYear} (todo el año)` : format(new Date(effectivePeriod + "-01"), "LLLL yyyy", { locale: es })}
           </span>
         </div>
 
