@@ -860,6 +860,32 @@ export function BIPage({ taxData: initialTaxData, statementsByYear = {}, rentalP
           </Card>
         )}
 
+        {/* Filtro de período para la tabla - visible encima de la tabla */}
+        <div className="flex flex-wrap items-center gap-4 py-3 px-4 mb-3 rounded-lg border border-gray-200 bg-gray-50">
+          <span className="text-sm font-medium text-gray-700">Filtrar tabla por período:</span>
+          <select
+            id="table-period-mode-2"
+            value={tablePeriodMode}
+            onChange={(e) => setTablePeriodMode(e.target.value as "annual" | "month")}
+            className="flex h-10 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm w-28"
+          >
+            <option value="annual">Anual</option>
+            <option value="month">Por mes</option>
+          </select>
+          {tablePeriodMode === "month" && (
+            <Input
+              id="table-period-month-2"
+              type="month"
+              value={effectivePeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="w-40 h-10"
+            />
+          )}
+          <span className="text-sm text-gray-500">
+            {tablePeriodMode === "annual" ? `${selectedYear} (todo el año)` : format(new Date(effectivePeriod + "-01"), "MMMM yyyy")}
+          </span>
+        </div>
+
         {/* Unit Metrics Table */}
         {tableMetrics.length > 0 && (
           <div className="overflow-x-auto">
